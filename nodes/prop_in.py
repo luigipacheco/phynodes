@@ -41,7 +41,7 @@ def read_data_path(data_path):
 
 
 class AQPropInNode(AQBaseNode, Node):
-    bl_idname = "MQTTNodesPropInNode"
+    bl_idname = "PhyNodesPropInNode"
     bl_label = "Property In"
     bl_icon = "IMPORT"
 

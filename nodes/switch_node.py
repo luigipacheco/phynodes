@@ -8,7 +8,7 @@ from ..base import AQBaseNode, to_bool_safe
 
 
 class AQSwitchNode(AQBaseNode, Node):
-    bl_idname = "MQTTNodesSwitchNode"
+    bl_idname = "PhyNodesSwitchNode"
     bl_label = "Switch"
     bl_icon = "MOD_PHYSICS"
 

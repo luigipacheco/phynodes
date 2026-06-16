@@ -1,5 +1,5 @@
 # GPL-3.0-or-later
-# The MQTT Nodes node tree and its typed value socket.
+# The PhyNodes node tree and its typed value socket.
 
 import bpy
 from bpy.props import (
@@ -12,13 +12,13 @@ from bpy.props import (
 )
 from bpy.types import NodeTree, NodeSocket
 
-TREE_ID = "MQTTNodesTreeType"
+TREE_ID = "PhyNodesTreeType"
 
 
-class MQTTNodesTree(NodeTree):
-    """A MQTT Nodes data-flow graph: wire nodes and exchange MQTT messages."""
+class PhyNodesTree(NodeTree):
+    """A PhyNodes data-flow graph: wire nodes and exchange MQTT messages."""
     bl_idname = TREE_ID
-    bl_label = "MQTT Nodes"
+    bl_label = "PhyNodes"
     bl_icon = "NODETREE"
 
 
@@ -54,7 +54,7 @@ class AQVariantSocket(NodeSocket):
     flowing through links are untouched, so a Float socket still happily carries
     an array from upstream.
     """
-    bl_idname = "MQTTNodesSocketType"
+    bl_idname = "PhyNodesSocketType"
     bl_label = "Value"
 
     data_type: EnumProperty(name="Type", items=DATA_TYPES, default="FLOAT")
@@ -125,7 +125,7 @@ class AQVariantSocket(NodeSocket):
 
 
 classes = (
-    MQTTNodesTree,
+    PhyNodesTree,
     AQVariantSocket,
 )
 

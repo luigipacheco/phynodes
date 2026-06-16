@@ -1,12 +1,12 @@
-# animaquina_mqttouch — Visual MQTT node graph for Blender
+# phynodes — Connect Blender to physical inputs and outputs through MQTT
 # Part of the Animaquina robot IDE family of add-ons.
 # Schema: https://developer.blender.org/docs/features/extensions/schema/1.0.0
 
 schema_version = "1.0.0"
-id = "mqttnodes"
+id = "phynodes"
 version = "0.1.0"
-name = "MQTT Nodes"
-tagline = "Wire Blender properties and sensors through an MQTT node graph"
+name = "PhyNodes"
+tagline = "Connect Blender to physical inputs and outputs through MQTT"
 type = "add-on"
 maintainer = "Luis Arturo Pacheco"
 license = ["SPDX:GPL-3.0-or-later"]

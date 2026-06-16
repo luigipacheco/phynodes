@@ -1,6 +1,6 @@
 # GPL-3.0-or-later
 # Timer-driven graph evaluation. Every ~50ms we evaluate each sink node in every
-# MQTT Nodes tree, which pulls the rest of the graph lazily.
+# PhyNodes tree, which pulls the rest of the graph lazily.
 
 import bpy
 
@@ -12,7 +12,7 @@ EVAL_INTERVAL = 0.05  # 50ms, matching mqttouch
 
 def _tick():
     scene = bpy.context.scene
-    settings = getattr(scene, "aq_mqttouch", None)
+    settings = getattr(scene, "phynodes", None)
     if settings is not None and not settings.enabled:
         return EVAL_INTERVAL
 

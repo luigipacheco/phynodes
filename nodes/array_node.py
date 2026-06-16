@@ -9,7 +9,7 @@ from ..base import AQBaseNode
 
 
 class AQArrayNode(AQBaseNode, Node):
-    bl_idname = "MQTTNodesArrayNode"
+    bl_idname = "PhyNodesArrayNode"
     bl_label = "Array"
     bl_icon = "LINENUMBERS_ON"
 

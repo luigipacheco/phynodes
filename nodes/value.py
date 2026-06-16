@@ -9,7 +9,7 @@ from ..base import AQBaseNode
 
 
 class AQValueNode(AQBaseNode, Node):
-    bl_idname = "MQTTNodesValueNode"
+    bl_idname = "PhyNodesValueNode"
     bl_label = "Value"
     bl_icon = "DRIVER"
 

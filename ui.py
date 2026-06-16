@@ -1,48 +1,79 @@
 # GPL-3.0-or-later
-# Node-editor UI: the Add-node menu for the MQTT Nodes tree, an N-panel for the
-# shared broker connection, and connect/disconnect operators.
+# Node-editor UI: a categorized Add menu (geometry-nodes style), an N-panel for
+# the shared broker connection, and connect/disconnect operators.
 
 import bpy
 from bpy.types import Menu, Panel, Operator
 
 from .tree import TREE_ID
-from .nodes import NODE_CLASSES
 from .connection import manager
+from .nodes import (
+    value, color_node, prop_in, mqtt_sub, math_node, map_node, clamp_node,
+    compare_node, switch_node, array_node, json_node, prop_out, mqtt_pub,
+    debug_out,
+)
 
 
 # ---------------------------------------------------------------------------
-# Add menu
+# Add menu — categories appear directly in the node editor's Add menu, like
+# geometry nodes (Input / Math / Logic / ...), each a submenu.
 # ---------------------------------------------------------------------------
 
-class NODE_MT_aq_mqttouch_add(Menu):
-    bl_idname = "NODE_MT_aq_mqttouch_add"
-    bl_label = "MQTT Nodes"
+CATEGORIES = [
+    ("Input", [value.AQValueNode, color_node.AQColorNode, prop_in.AQPropInNode]),
+    ("Math", [math_node.AQMathNode, map_node.AQMapNode, clamp_node.AQClampNode]),
+    ("Logic", [compare_node.AQCompareNode, switch_node.AQSwitchNode]),
+    ("Array", [array_node.AQArrayNode]),
+    ("JSON", [json_node.AQJsonParseNode, json_node.AQJsonStringifyNode]),
+    ("MQTT", [mqtt_sub.AQMqttSubNode, mqtt_pub.AQMqttPubNode]),
+    ("Output", [prop_out.AQPropOutNode, debug_out.AQDebugNode]),
+]
 
+
+def _make_category_menu(label, node_classes):
     def draw(self, context):
         layout = self.layout
-        for cls in NODE_CLASSES:
+        for cls in node_classes:
             op = layout.operator("node.add_node", text=cls.bl_label)
             op.type = cls.bl_idname
             op.use_transform = True
 
+    slug = label.lower().replace(" ", "_")
+    return type(
+        "NODE_MT_phynodes_" + slug,
+        (Menu,),
+        {
+            "bl_idname": "NODE_MT_phynodes_" + slug,
+            "bl_label": label,
+            "draw": draw,
+        },
+    )
+
+
+_category_menus = [_make_category_menu(lbl, classes) for lbl, classes in CATEGORIES]
+
 
 def _draw_add_menu(self, context):
     space = context.space_data
-    if space and getattr(space, "tree_type", "") == TREE_ID:
-        self.layout.menu(NODE_MT_aq_mqttouch_add.bl_idname)
+    if not (space and getattr(space, "tree_type", "") == TREE_ID):
+        return
+    layout = self.layout
+    layout.separator()
+    for menu in _category_menus:
+        layout.menu(menu.bl_idname)
 
 
 # ---------------------------------------------------------------------------
 # Operators
 # ---------------------------------------------------------------------------
 
-class AQ_OT_mqttouch_connect(Operator):
-    bl_idname = "aq_mqttouch.connect"
+class PHYNODES_OT_connect(Operator):
+    bl_idname = "phynodes.connect"
     bl_label = "Connect"
     bl_description = "Connect the shared MQTT client to the broker"
 
     def execute(self, context):
-        s = context.scene.aq_mqttouch
+        s = context.scene.phynodes
         if not manager.available:
             self.report({"ERROR"}, "paho-mqtt is not installed in Blender's Python")
             return {"CANCELLED"}
@@ -54,8 +85,8 @@ class AQ_OT_mqttouch_connect(Operator):
         return {"FINISHED"}
 
 
-class AQ_OT_mqttouch_disconnect(Operator):
-    bl_idname = "aq_mqttouch.disconnect"
+class PHYNODES_OT_disconnect(Operator):
+    bl_idname = "phynodes.disconnect"
     bl_label = "Disconnect"
     bl_description = "Disconnect the shared MQTT client"
 
@@ -68,12 +99,12 @@ class AQ_OT_mqttouch_disconnect(Operator):
 # N-panel
 # ---------------------------------------------------------------------------
 
-class NODE_PT_aq_mqttouch(Panel):
-    bl_idname = "NODE_PT_aq_mqttouch"
-    bl_label = "MQTT Nodes Broker"
+class NODE_PT_phynodes(Panel):
+    bl_idname = "NODE_PT_phynodes"
+    bl_label = "PhyNodes Broker"
     bl_space_type = "NODE_EDITOR"
     bl_region_type = "UI"
-    bl_category = "MQTT Nodes"
+    bl_category = "PhyNodes"
 
     @classmethod
     def poll(cls, context):
@@ -82,7 +113,7 @@ class NODE_PT_aq_mqttouch(Panel):
 
     def draw(self, context):
         layout = self.layout
-        s = context.scene.aq_mqttouch
+        s = context.scene.phynodes
 
         if not manager.available:
             box = layout.box()
@@ -99,19 +130,18 @@ class NODE_PT_aq_mqttouch(Panel):
         row = layout.row(align=True)
         if manager.connected:
             row.label(text="Connected", icon="LINKED")
-            row.operator(AQ_OT_mqttouch_disconnect.bl_idname, text="", icon="X")
+            row.operator(PHYNODES_OT_disconnect.bl_idname, text="", icon="X")
         else:
-            row.operator(AQ_OT_mqttouch_connect.bl_idname, icon="PLAY")
+            row.operator(PHYNODES_OT_connect.bl_idname, icon="PLAY")
 
         if manager.last_error:
             layout.label(text=manager.last_error[:48], icon="ERROR")
 
 
-classes = (
-    NODE_MT_aq_mqttouch_add,
-    AQ_OT_mqttouch_connect,
-    AQ_OT_mqttouch_disconnect,
-    NODE_PT_aq_mqttouch,
+classes = tuple(_category_menus) + (
+    PHYNODES_OT_connect,
+    PHYNODES_OT_disconnect,
+    NODE_PT_phynodes,
 )
 
 

@@ -11,7 +11,7 @@ from ..connection import manager
 
 
 class AQMqttSubNode(AQBaseNode, Node):
-    bl_idname = "MQTTNodesMqttSubNode"
+    bl_idname = "PhyNodesMqttSubNode"
     bl_label = "MQTT SUB"
     bl_icon = "IMPORT"
 

@@ -10,7 +10,7 @@ from ..connection import manager
 
 
 class AQMqttPubNode(AQBaseNode, Node):
-    bl_idname = "MQTTNodesMqttPubNode"
+    bl_idname = "PhyNodesMqttPubNode"
     bl_label = "MQTT PUB"
     bl_icon = "EXPORT"
 

@@ -9,7 +9,7 @@ from ..base import AQBaseNode
 
 
 class AQColorNode(AQBaseNode, Node):
-    bl_idname = "MQTTNodesColorNode"
+    bl_idname = "PhyNodesColorNode"
     bl_label = "Color"
     bl_icon = "COLOR"
 

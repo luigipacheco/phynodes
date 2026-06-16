@@ -17,7 +17,7 @@ def _remap(v, fmin, fmax, tmin, tmax):
 
 
 class AQMapNode(AQBaseNode, Node):
-    bl_idname = "MQTTNodesMapNode"
+    bl_idname = "PhyNodesMapNode"
     bl_label = "Map Range"
     bl_icon = "ARROW_LEFTRIGHT"
 

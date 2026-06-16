@@ -1,12 +1,12 @@
 # GPL-3.0-or-later
-# Scene-level MQTT Nodes settings: the single shared broker connection config.
+# Scene-level PhyNodes settings: the single shared broker connection config.
 
 import bpy
 from bpy.props import StringProperty, BoolProperty, IntProperty, PointerProperty
 from bpy.types import PropertyGroup
 
 
-class MQTTNodesSettings(PropertyGroup):
+class PhyNodesSettings(PropertyGroup):
     broker_host: StringProperty(
         name="Broker Host",
         description="IP or hostname of the MQTT broker",
@@ -20,21 +20,21 @@ class MQTTNodesSettings(PropertyGroup):
     )
     topic_prefix: StringProperty(
         name="Topic Prefix",
-        description="Prepended to every node topic (e.g. /mqttnodes/)",
-        default="/mqttnodes/",
+        description="Prepended to every node topic (e.g. /phynodes/)",
+        default="/phynodes/",
     )
     enabled: BoolProperty(
         name="Graph Enabled",
-        description="Evaluate the MQTT Nodes graph and exchange MQTT messages",
+        description="Evaluate the PhyNodes graph and exchange MQTT messages",
         default=True,
     )
 
 
 def register():
-    bpy.utils.register_class(MQTTNodesSettings)
-    bpy.types.Scene.aq_mqttouch = PointerProperty(type=MQTTNodesSettings)
+    bpy.utils.register_class(PhyNodesSettings)
+    bpy.types.Scene.phynodes = PointerProperty(type=PhyNodesSettings)
 
 
 def unregister():
-    del bpy.types.Scene.aq_mqttouch
-    bpy.utils.unregister_class(MQTTNodesSettings)
+    del bpy.types.Scene.phynodes
+    bpy.utils.unregister_class(PhyNodesSettings)

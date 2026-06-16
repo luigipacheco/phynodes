@@ -36,7 +36,7 @@ def _cmp(op, a, b):
 
 
 class AQCompareNode(AQBaseNode, Node):
-    bl_idname = "MQTTNodesCompareNode"
+    bl_idname = "PhyNodesCompareNode"
     bl_label = "Compare"
     bl_icon = "ARROW_LEFTRIGHT"
 
