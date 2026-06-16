@@ -146,7 +146,7 @@ def _set_socket_default(sock, data_type, default):
 # ---------------------------------------------------------------------------
 
 class AQBaseNode:
-    """Mixin for all MQTTouch nodes. Subclass alongside bpy.types.Node."""
+    """Mixin for all MQTT Nodes nodes. Subclass alongside bpy.types.Node."""
 
     # Sink nodes (PUB, Property Out, Debug) are evaluated by the timer each tick
     # and pull the graph upstream. Override to True and implement evaluate_sink.
@@ -165,7 +165,7 @@ class AQBaseNode:
         Like geometry-node sockets: `data_type` picks the default widget +
         color, `default` seeds it, and min/max clamp the value when unlinked.
         """
-        sock = self.inputs.new("AQVariantSocketType", name)
+        sock = self.inputs.new("MQTTNodesSocketType", name)
         sock.data_type = data_type
         if default is not None:
             _set_socket_default(sock, data_type, default)
@@ -178,7 +178,7 @@ class AQBaseNode:
         return sock
 
     def new_output(self, name, data_type="ANY"):
-        sock = self.outputs.new("AQVariantSocketType", name)
+        sock = self.outputs.new("MQTTNodesSocketType", name)
         sock.data_type = data_type
         return sock
 

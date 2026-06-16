@@ -3,9 +3,9 @@
 # Schema: https://developer.blender.org/docs/features/extensions/schema/1.0.0
 
 schema_version = "1.0.0"
-id = "animaquina_mqttouch"
+id = "mqttnodes"
 version = "0.1.0"
-name = "Animaquina MQTTouch"
+name = "MQTT Nodes"
 tagline = "Wire Blender properties and sensors through an MQTT node graph"
 type = "add-on"
 maintainer = "Luis Arturo Pacheco"

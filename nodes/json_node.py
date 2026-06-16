@@ -9,7 +9,7 @@ from ..base import AQBaseNode
 
 
 class AQJsonParseNode(AQBaseNode, Node):
-    bl_idname = "AQMqttouchJsonParseNode"
+    bl_idname = "MQTTNodesJsonParseNode"
     bl_label = "JSON Parse"
     bl_icon = "IMPORT"
 
@@ -28,7 +28,7 @@ class AQJsonParseNode(AQBaseNode, Node):
 
 
 class AQJsonStringifyNode(AQBaseNode, Node):
-    bl_idname = "AQMqttouchJsonStringifyNode"
+    bl_idname = "MQTTNodesJsonStringifyNode"
     bl_label = "JSON Stringify"
     bl_icon = "EXPORT"
 

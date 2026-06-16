@@ -1,5 +1,5 @@
 # GPL-3.0-or-later
-# Node-editor UI: the Add-node menu for the MQTTouch tree, an N-panel for the
+# Node-editor UI: the Add-node menu for the MQTT Nodes tree, an N-panel for the
 # shared broker connection, and connect/disconnect operators.
 
 import bpy
@@ -16,7 +16,7 @@ from .connection import manager
 
 class NODE_MT_aq_mqttouch_add(Menu):
     bl_idname = "NODE_MT_aq_mqttouch_add"
-    bl_label = "MQTTouch"
+    bl_label = "MQTT Nodes"
 
     def draw(self, context):
         layout = self.layout
@@ -70,10 +70,10 @@ class AQ_OT_mqttouch_disconnect(Operator):
 
 class NODE_PT_aq_mqttouch(Panel):
     bl_idname = "NODE_PT_aq_mqttouch"
-    bl_label = "MQTTouch Broker"
+    bl_label = "MQTT Nodes Broker"
     bl_space_type = "NODE_EDITOR"
     bl_region_type = "UI"
-    bl_category = "MQTTouch"
+    bl_category = "MQTT Nodes"
 
     @classmethod
     def poll(cls, context):

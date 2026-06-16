@@ -1,6 +1,6 @@
 # GPL-3.0-or-later
 # Timer-driven graph evaluation. Every ~50ms we evaluate each sink node in every
-# MQTTouch tree, which pulls the rest of the graph lazily.
+# MQTT Nodes tree, which pulls the rest of the graph lazily.
 
 import bpy
 

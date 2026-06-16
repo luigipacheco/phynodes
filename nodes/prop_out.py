@@ -28,7 +28,7 @@ def write_data_path(data_path, value):
 
 
 class AQPropOutNode(AQBaseNode, Node):
-    bl_idname = "AQMqttouchPropOutNode"
+    bl_idname = "MQTTNodesPropOutNode"
     bl_label = "Property Out"
     bl_icon = "EXPORT"
 

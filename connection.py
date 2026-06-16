@@ -23,7 +23,7 @@ class MQTTManager:
         self._thread = None
         self._keep_running = False
         self._broker_host = ""
-        self._topic_prefix = "/mqttouch/"
+        self._topic_prefix = "/mqttnodes/"
         # Latest raw payload (str) per full topic, written from the network thread.
         self.messages = {}
         self.last_error = ""

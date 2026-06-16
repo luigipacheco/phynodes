@@ -83,7 +83,7 @@ def _scalar(op, a, b):
 
 
 class AQMathNode(AQBaseNode, Node):
-    bl_idname = "AQMqttouchMathNode"
+    bl_idname = "MQTTNodesMathNode"
     bl_label = "Math"
     bl_icon = "PLUS"
 

@@ -1,5 +1,5 @@
 # GPL-3.0-or-later
-# Animaquina MQTTouch — a visual MQTT node graph for Blender.
+# Animaquina MQTT Nodes — a visual MQTT node graph for Blender.
 #
 # Ports the mqttouch (Godot) node editor into a native Blender NodeTree: wire
 # Value / Math / Map / MQTT / Property nodes together and a timer evaluates the
@@ -7,12 +7,12 @@
 # as a sub-module later.
 
 bl_info = {
-    "name": "Animaquina MQTTouch",
+    "name": "MQTT Nodes",
     "author": "Luis Arturo Pacheco",
     "description": "Visual MQTT node graph: wire Blender properties and sensors through MQTT.",
     "blender": (4, 2, 0),
     "version": (0, 1, 0),
-    "location": "Node Editor > MQTTouch",
+    "location": "Node Editor > MQTT Nodes",
     "warning": "Beta — requires paho-mqtt in Blender's Python.",
     "doc_url": "https://www.animaquina.com",
     "category": "Node",

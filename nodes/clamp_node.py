@@ -12,7 +12,7 @@ def _clamp(v, lo, hi):
 
 
 class AQClampNode(AQBaseNode, Node):
-    bl_idname = "AQMqttouchClampNode"
+    bl_idname = "MQTTNodesClampNode"
     bl_label = "Clamp"
     bl_icon = "CON_DISTLIMIT"
 

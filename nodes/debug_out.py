@@ -10,7 +10,7 @@ from ..base import AQBaseNode, is_array
 
 
 class AQDebugNode(AQBaseNode, Node):
-    bl_idname = "AQMqttouchDebugNode"
+    bl_idname = "MQTTNodesDebugNode"
     bl_label = "Debug"
     bl_icon = "INFO"
 
