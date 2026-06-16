@@ -27,7 +27,7 @@ class AQMapNode(AQBaseNode, Node):
         self.new_input("From Max", default=1.0)
         self.new_input("To Min", default=0.0)
         self.new_input("To Max", default=1.0)
-        self.new_output("Result")
+        self.new_output("Result", "FLOAT")
 
     def compute_output(self, socket):
         value = self.get_input("Value", 0.0)

@@ -123,6 +123,25 @@ def format_for_mqtt(value):
 
 
 # ---------------------------------------------------------------------------
+# Socket helpers
+# ---------------------------------------------------------------------------
+
+def _set_socket_default(sock, data_type, default):
+    if data_type == "FLOAT":
+        sock.value_float = float(default)
+    elif data_type == "INT":
+        sock.value_int = int(default)
+    elif data_type == "BOOL":
+        sock.value_bool = bool(default)
+    elif data_type == "STRING":
+        sock.value_string = str(default)
+    elif data_type == "VECTOR":
+        sock.value_vector = tuple(default)[:3]
+    elif data_type == "COLOR":
+        sock.value_color = tuple(default)[:4]
+
+
+# ---------------------------------------------------------------------------
 # Node base class
 # ---------------------------------------------------------------------------
 
@@ -140,15 +159,27 @@ class AQBaseNode:
         return ntree.bl_idname == TREE_ID
 
     # -- wiring helpers ---------------------------------------------------
-    def new_input(self, name, kind="SCALAR", default=0.0):
+    def new_input(self, name, data_type="FLOAT", default=None, min=None, max=None):
+        """Add an input socket with an optional preset default and min/max.
+
+        Like geometry-node sockets: `data_type` picks the default widget +
+        color, `default` seeds it, and min/max clamp the value when unlinked.
+        """
         sock = self.inputs.new("AQVariantSocketType", name)
-        sock.kind = kind
-        sock.default_value = default
+        sock.data_type = data_type
+        if default is not None:
+            _set_socket_default(sock, data_type, default)
+        if min is not None or max is not None:
+            sock.use_clamp = True
+            if min is not None:
+                sock.min_value = min
+            if max is not None:
+                sock.max_value = max
         return sock
 
-    def new_output(self, name, kind="SCALAR"):
+    def new_output(self, name, data_type="ANY"):
         sock = self.outputs.new("AQVariantSocketType", name)
-        sock.kind = kind
+        sock.data_type = data_type
         return sock
 
     def get_input(self, name, default=None):

@@ -22,7 +22,7 @@ class AQMqttSubNode(AQBaseNode, Node):
     )
 
     def init(self, context):
-        self.new_output("Value", kind="MQTT")
+        self.new_output("Value", "ANY")
 
     def draw_buttons(self, context, layout):
         layout.prop(self, "topic", text="")

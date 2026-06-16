@@ -16,7 +16,7 @@ class AQValueNode(AQBaseNode, Node):
     value: FloatProperty(name="Value", default=0.0)
 
     def init(self, context):
-        self.new_output("Value")
+        self.new_output("Value", "FLOAT")
 
     def draw_buttons(self, context, layout):
         layout.prop(self, "value", text="", slider=True)

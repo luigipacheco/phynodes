@@ -41,7 +41,7 @@ class AQPropOutNode(AQBaseNode, Node):
     )
 
     def init(self, context):
-        self.new_input("Value")
+        self.new_input("Value", "ANY")
 
     def draw_buttons(self, context, layout):
         layout.prop(self, "data_path", text="")

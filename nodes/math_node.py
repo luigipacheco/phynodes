@@ -92,7 +92,7 @@ class AQMathNode(AQBaseNode, Node):
     def init(self, context):
         self.new_input("A")
         self.new_input("B", default=1.0)
-        self.new_output("Result")
+        self.new_output("Result", "FLOAT")
 
     def draw_buttons(self, context, layout):
         layout.prop(self, "operation", text="")

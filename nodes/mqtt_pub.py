@@ -33,7 +33,7 @@ class AQMqttPubNode(AQBaseNode, Node):
     has_published: BoolProperty(default=False, options={"HIDDEN"})
 
     def init(self, context):
-        self.new_input("Value")
+        self.new_input("Value", "ANY")
 
     def draw_buttons(self, context, layout):
         layout.prop(self, "topic", text="")

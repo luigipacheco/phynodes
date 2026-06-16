@@ -19,7 +19,7 @@ class AQDebugNode(AQBaseNode, Node):
     display: StringProperty(default="-", options={"HIDDEN"})
 
     def init(self, context):
-        self.new_input("Value")
+        self.new_input("Value", "ANY")
 
     def draw_buttons(self, context, layout):
         layout.label(text=self.display)
