@@ -26,8 +26,11 @@ class AQMqttPubNode(AQBaseNode, Node):
         description="Publish only when the value differs from the last sent value",
         default=True,
     )
-    # Last published payload, kept to suppress duplicate publishes.
-    last_payload: StringProperty(default="\x00", options={"HIDDEN"})
+    # Last published payload, kept to suppress duplicate publishes. The flag
+    # forces a publish the first tick (a StringProperty cannot hold a null
+    # sentinel, and any string could legitimately be a payload).
+    last_payload: StringProperty(default="", options={"HIDDEN"})
+    has_published: BoolProperty(default=False, options={"HIDDEN"})
 
     def init(self, context):
         self.new_input("Value")
@@ -39,10 +42,11 @@ class AQMqttPubNode(AQBaseNode, Node):
     def evaluate_sink(self):
         value = self.get_input("Value", 0.0)
         payload = format_for_mqtt(value)
-        if self.only_on_change and payload == self.last_payload:
+        if self.only_on_change and self.has_published and payload == self.last_payload:
             return
         if manager.publish(self.topic, payload):
             self.last_payload = payload
+            self.has_published = True
 
 
 classes = (AQMqttPubNode,)
