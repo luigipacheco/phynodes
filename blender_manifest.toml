@@ -1,0 +1,19 @@
+# animaquina_mqttouch — Visual MQTT node graph for Blender
+# Part of the Animaquina robot IDE family of add-ons.
+# Schema: https://developer.blender.org/docs/features/extensions/schema/1.0.0
+
+schema_version = "1.0.0"
+id = "animaquina_mqttouch"
+version = "0.1.0"
+name = "Animaquina MQTTouch"
+tagline = "Wire Blender properties and sensors through an MQTT node graph"
+type = "add-on"
+maintainer = "Luis Arturo Pacheco"
+license = ["SPDX:GPL-3.0-or-later"]
+blender_version_min = "4.2.0"
+
+website = "https://www.animaquina.com"
+
+# paho-mqtt is required at runtime. It is not bundled here yet; install it into
+# Blender's Python (pip install paho-mqtt) or vendor it before shipping.
+# wheels = []
