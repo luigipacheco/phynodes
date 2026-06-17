@@ -13,8 +13,10 @@ EVAL_INTERVAL = 0.05  # 50ms, matching mqttouch
 def _tick():
     scene = bpy.context.scene
     settings = getattr(scene, "phynodes", None)
+    interval = settings.eval_interval if settings is not None else EVAL_INTERVAL
+
     if settings is not None and not settings.enabled:
-        return EVAL_INTERVAL
+        return interval
 
     for tree in bpy.data.node_groups:
         if tree.bl_idname != TREE_ID:
@@ -25,8 +27,8 @@ def _tick():
                 try:
                     node.evaluate_sink()
                 except Exception as exc:
-                    print("[mqttouch] sink error in", node.name, ":", exc)
-    return EVAL_INTERVAL
+                    print("[phynodes] sink error in", node.name, ":", exc)
+    return interval
 
 
 def register():

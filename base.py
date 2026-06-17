@@ -182,6 +182,36 @@ class AQBaseNode:
         sock.data_type = data_type
         return sock
 
+    # -- sidebar (N-panel) ------------------------------------------------
+    def draw_buttons_ext(self, context, layout):
+        """N-panel view: node params plus per-socket type / default / min-max,
+        like geometry nodes expose socket settings in the sidebar."""
+        self.draw_buttons(context, layout)
+
+        if len(self.inputs):
+            layout.separator()
+            layout.label(text="Inputs", icon="NODE_SEL")
+            for sock in self.inputs:
+                box = layout.box()
+                box.label(text=sock.name or "Input")
+                box.prop(sock, "data_type", text="Type")
+                if sock.data_type != "ANY":
+                    sock.draw_default(box, "Default")
+                if sock.data_type in {"FLOAT", "INT"}:
+                    box.prop(sock, "use_clamp", text="Clamp Min / Max")
+                    if sock.use_clamp:
+                        row = box.row(align=True)
+                        row.prop(sock, "min_value")
+                        row.prop(sock, "max_value")
+
+        if len(self.outputs):
+            layout.separator()
+            layout.label(text="Outputs", icon="NODE_SEL")
+            for sock in self.outputs:
+                row = layout.row(align=True)
+                row.label(text=sock.name or "Output")
+                row.prop(sock, "data_type", text="")
+
     def get_input(self, name, default=None):
         """Resolve an input socket's value: linked source, else its default."""
         sock = self.inputs.get(name)

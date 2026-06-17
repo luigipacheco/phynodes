@@ -80,6 +80,10 @@ class AQVariantSocket(NodeSocket):
         if self.is_output or self.is_linked:
             layout.label(text=text)
             return
+        self.draw_default(layout, text)
+
+    def draw_default(self, layout, text=""):
+        """Draw the type-appropriate default-value widget (no link check)."""
         dt = self.data_type
         if dt == "FLOAT":
             layout.prop(self, "value_float", text=text)
@@ -91,12 +95,13 @@ class AQVariantSocket(NodeSocket):
             layout.prop(self, "value_string", text=text)
         elif dt == "VECTOR":
             col = layout.column(align=True)
-            col.label(text=text)
+            if text:
+                col.label(text=text)
             col.prop(self, "value_vector", text="")
         elif dt == "COLOR":
             layout.prop(self, "value_color", text=text)
         else:  # ANY
-            layout.label(text=text)
+            layout.label(text=text or "(any)")
 
     def draw_color(self, context, node):
         return _TYPE_COLORS.get(self.data_type, _TYPE_COLORS["ANY"])

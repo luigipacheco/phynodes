@@ -92,6 +92,10 @@ class AQCustomPropertyNode(AQBaseNode, Node):
         kind = "objects" if self.target_kind == "OBJECT" else "scenes"
         return 'bpy.data.%s["%s"]["%s"]' % (kind, tgt.name, name)
 
+    def var_path(self):
+        """Path for a Single Property driver variable (expression `var`)."""
+        return '["%s"]' % self.prop_name if self.prop_name else ""
+
     # -- UI --------------------------------------------------------------
     def draw_buttons(self, context, layout):
         layout.prop(self, "prop_name")
@@ -103,10 +107,15 @@ class AQCustomPropertyNode(AQBaseNode, Node):
             row = layout.row(align=True)
             row.prop(self, "min_value")
             row.prop(self, "max_value")
-        path = self.driver_path()
-        if path:
-            op = layout.operator("phynodes.copy_driver_path", icon="COPYDOWN")
-            op.path = path
+        if self.driver_path():
+            col = layout.column(align=True)
+            col.label(text="Driver (use a variable):")
+            op = col.operator("phynodes.copy_driver_path",
+                              text="Copy Var Path", icon="COPYDOWN")
+            op.path = self.var_path()
+            op2 = col.operator("phynodes.copy_driver_path",
+                               text="Copy Py Expression", icon="COPYDOWN")
+            op2.path = self.driver_path()
 
     # -- evaluation ------------------------------------------------------
     def evaluate_sink(self):

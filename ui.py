@@ -155,6 +155,7 @@ class NODE_PT_phynodes(Panel):
         col.prop(s, "topic_prefix")
 
         layout.prop(s, "enabled")
+        layout.prop(s, "eval_interval")
 
         row = layout.row(align=True)
         if manager.connected:
