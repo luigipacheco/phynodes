@@ -5,8 +5,8 @@
 import bpy
 
 from . import (
-    value, input_nodes, math_node, map_node, clamp_node, compare_node,
-    switch_node, array_node, color_node, json_node,
+    value, input_nodes, time_node, math_node, map_node, clamp_node,
+    compare_node, switch_node, array_node, color_node, json_node,
     mqtt_sub, mqtt_pub, prop_in, attribute_node, prop_out, custom_prop,
     debug_out,
 )
@@ -20,6 +20,8 @@ NODE_CLASSES = (
     input_nodes.AQVectorNode,
     input_nodes.AQStringNode,
     color_node.AQColorNode,
+    time_node.AQSceneTimeNode,
+    time_node.AQTimerNode,
     prop_in.AQPropInNode,
     attribute_node.AQAttributeNode,
     mqtt_sub.AQMqttSubNode,

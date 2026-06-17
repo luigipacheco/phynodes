@@ -1,8 +1,8 @@
 # GPL-3.0-or-later
-# Array node: combine a configurable number of inputs into a single array.
+# Array node: combine many inputs into a single array via a Blender-native
+# multi-input socket (like Join Geometry), rather than a fixed count.
 
 import bpy
-from bpy.props import IntProperty
 from bpy.types import Node
 
 from ..base import AQBaseNode
@@ -13,29 +13,24 @@ class AQArrayNode(AQBaseNode, Node):
     bl_label = "Array"
     bl_icon = "LINENUMBERS_ON"
 
-    def _update_count(self, context):
-        n = self.count
-        while len(self.inputs) < n:
-            self.new_input("In %d" % len(self.inputs), "ANY")
-        while len(self.inputs) > n:
-            self.inputs.remove(self.inputs[-1])
-
-    count: IntProperty(
-        name="Count",
-        description="Number of input slots to combine",
-        default=2, min=1, max=16,
-        update=_update_count,
-    )
-
     def init(self, context):
+        sock = self.new_input("Items", "ANY")
+        # link_limit = 0 -> unlimited links = a multi-input socket.
+        try:
+            sock.link_limit = 0
+        except Exception:
+            pass
         self.new_output("Array", "ANY")
-        self._update_count(context)
-
-    def draw_buttons(self, context, layout):
-        layout.prop(self, "count")
 
     def compute_output(self, socket):
-        return [self.get_input(s.name, 0.0) for s in self.inputs]
+        items = self.inputs.get("Items")
+        out = []
+        if items:
+            for link in items.links:
+                from_node = link.from_node
+                if isinstance(from_node, AQBaseNode):
+                    out.append(from_node.eval_output(link.from_socket))
+        return out
 
 
 classes = (AQArrayNode,)

@@ -128,6 +128,29 @@ class AQVariantSocket(NodeSocket):
             return [c[0], c[1], c[2], c[3]]
         return self.value_float  # ANY
 
+    # Blender's standard socket attribute is `default_value`; expose it as an
+    # alias over the type-specific backing props so the socket reads like a
+    # native one in scripts.
+    @property
+    def default_value(self):
+        return self.get_value()
+
+    @default_value.setter
+    def default_value(self, value):
+        dt = self.data_type
+        if dt == "FLOAT":
+            self.value_float = float(value)
+        elif dt == "INT":
+            self.value_int = int(value)
+        elif dt == "BOOL":
+            self.value_bool = bool(value)
+        elif dt == "STRING":
+            self.value_string = str(value)
+        elif dt == "VECTOR":
+            self.value_vector = tuple(value)[:3]
+        elif dt == "COLOR":
+            self.value_color = tuple(value)[:4]
+
 
 classes = (
     PhyNodesTree,

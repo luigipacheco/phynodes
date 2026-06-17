@@ -47,6 +47,12 @@ class AQCompareNode(AQBaseNode, Node):
         self.new_input("B", "FLOAT")
         self.new_output("Result", "BOOL")
 
+    def draw_label(self):
+        for ident, label, _ in _OPS:
+            if ident == self.operation:
+                return label
+        return self.bl_label
+
     def draw_buttons(self, context, layout):
         layout.prop(self, "operation", text="")
 

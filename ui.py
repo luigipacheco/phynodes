@@ -2,6 +2,8 @@
 # Node-editor UI: a categorized Add menu (geometry-nodes style), an N-panel for
 # the shared broker connection, and connect/disconnect operators.
 
+import time
+
 import bpy
 from bpy.props import StringProperty
 from bpy.types import Menu, Panel, Operator
@@ -9,10 +11,17 @@ from bpy.types import Menu, Panel, Operator
 from .tree import TREE_ID
 from .connection import manager
 from .nodes import (
-    value, input_nodes, color_node, prop_in, attribute_node, mqtt_sub,
-    math_node, map_node, clamp_node, compare_node, switch_node, array_node,
-    json_node, prop_out, custom_prop, mqtt_pub, debug_out,
+    value, input_nodes, color_node, time_node, prop_in, attribute_node,
+    mqtt_sub, math_node, map_node, clamp_node, compare_node, switch_node,
+    array_node, json_node, prop_out, custom_prop, mqtt_pub, debug_out,
 )
+
+# Blender's own helper for adding node-type entries to a menu (consistent with
+# how the built-in node Add menus are built). Fall back if unavailable.
+try:
+    from bl_ui import node_add_menu
+except Exception:
+    node_add_menu = None
 
 
 # ---------------------------------------------------------------------------
@@ -28,6 +37,8 @@ CATEGORIES = [
         input_nodes.AQVectorNode,
         input_nodes.AQStringNode,
         color_node.AQColorNode,
+        time_node.AQSceneTimeNode,
+        time_node.AQTimerNode,
         prop_in.AQPropInNode,
         attribute_node.AQAttributeNode,
     ]),
@@ -48,9 +59,12 @@ def _make_category_menu(label, node_classes):
     def draw(self, context):
         layout = self.layout
         for cls in node_classes:
-            op = layout.operator("node.add_node", text=cls.bl_label)
-            op.type = cls.bl_idname
-            op.use_transform = True
+            if node_add_menu is not None:
+                node_add_menu.add_node_type(layout, cls.bl_idname)
+            else:
+                op = layout.operator("node.add_node", text=cls.bl_label)
+                op.type = cls.bl_idname
+                op.use_transform = True
 
     slug = label.lower().replace(" ", "_")
     return type(
@@ -106,6 +120,23 @@ class PHYNODES_OT_disconnect(Operator):
 
     def execute(self, context):
         manager.stop()
+        return {"FINISHED"}
+
+
+class PHYNODES_OT_reset_timer(Operator):
+    bl_idname = "phynodes.reset_timer"
+    bl_label = "Reset Timer"
+    bl_description = "Reset this Timer node's elapsed time to zero"
+
+    tree_name: StringProperty()
+    node_name: StringProperty()
+
+    def execute(self, context):
+        tree = bpy.data.node_groups.get(self.tree_name)
+        node = tree.nodes.get(self.node_name) if tree else None
+        if node is None:
+            return {"CANCELLED"}
+        node["start"] = time.time()
         return {"FINISHED"}
 
 
@@ -173,6 +204,7 @@ classes = tuple(_category_menus) + (
     PHYNODES_OT_connect,
     PHYNODES_OT_disconnect,
     PHYNODES_OT_copy_driver_path,
+    PHYNODES_OT_reset_timer,
     NODE_PT_phynodes,
 )
 
