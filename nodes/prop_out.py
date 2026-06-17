@@ -9,7 +9,7 @@ import bpy
 from bpy.props import StringProperty
 from bpy.types import Node
 
-from ..base import AQBaseNode, is_array, to_float_safe
+from ..base import AQBaseNode, is_array, to_float_safe, mark_dirty
 
 
 def write_data_path(data_path, value):
@@ -39,6 +39,7 @@ class AQPropOutNode(AQBaseNode, Node):
         description='e.g. bpy.data.objects["Cube"].rotation_euler[2]',
         default='bpy.data.objects["Cube"].rotation_euler[2]',
     )
+    last_written: StringProperty(default="", options={"HIDDEN"})
 
     def init(self, context):
         self.new_input("Value", "ANY")
@@ -56,7 +57,12 @@ class AQPropOutNode(AQBaseNode, Node):
             payload = value
         else:
             payload = to_float_safe(value)
-        write_data_path(self.data_path, payload)
+        key = repr(payload)
+        if key == self.last_written:
+            return
+        if write_data_path(self.data_path, payload):
+            self.last_written = key
+            mark_dirty()
 
 
 classes = (AQPropOutNode,)

@@ -13,7 +13,7 @@ from bpy.props import (
 )
 from bpy.types import Node
 
-from ..base import AQBaseNode, to_float_safe
+from ..base import AQBaseNode, to_float_safe, mark_dirty
 
 _TARGETS = [
     ("SCENE", "Scene", "Create the property on the current scene"),
@@ -131,11 +131,12 @@ class AQCustomPropertyNode(AQBaseNode, Node):
             self._ensure_property()
         tgt[name] = val
         self.last_written = key
-        # nudge the dependency graph so drivers re-evaluate
+        # nudge the dependency graph so drivers re-evaluate, and flag a redraw
         try:
             tgt.update_tag()
         except Exception:
             pass
+        mark_dirty()
 
 
 classes = (AQCustomPropertyNode,)

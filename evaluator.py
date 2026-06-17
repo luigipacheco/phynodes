@@ -10,6 +10,21 @@ from .tree import TREE_ID
 EVAL_INTERVAL = 0.05  # 50ms, matching mqttouch
 
 
+def _redraw():
+    """Request a redraw of 3D viewports and node editors so changes written
+    from this timer repaint without the user clicking in the viewport."""
+    wm = bpy.context.window_manager
+    if not wm:
+        return
+    for window in wm.windows:
+        screen = window.screen
+        if not screen:
+            continue
+        for area in screen.areas:
+            if area.type in {"VIEW_3D", "NODE_EDITOR"}:
+                area.tag_redraw()
+
+
 def _tick():
     scene = bpy.context.scene
     settings = getattr(scene, "phynodes", None)
@@ -28,6 +43,9 @@ def _tick():
                     node.evaluate_sink()
                 except Exception as exc:
                     print("[phynodes] sink error in", node.name, ":", exc)
+
+    if base.consume_dirty():
+        _redraw()
     return interval
 
 

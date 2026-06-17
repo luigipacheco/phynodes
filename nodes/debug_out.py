@@ -6,7 +6,7 @@ import bpy
 from bpy.props import StringProperty
 from bpy.types import Node
 
-from ..base import AQBaseNode, is_array
+from ..base import AQBaseNode, is_array, mark_dirty
 
 
 class AQDebugNode(AQBaseNode, Node):
@@ -32,6 +32,7 @@ class AQDebugNode(AQBaseNode, Node):
             text = str(value)[:40]
         if text != self.display:
             self.display = text
+            mark_dirty()
 
 
 classes = (AQDebugNode,)

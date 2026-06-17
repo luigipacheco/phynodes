@@ -10,11 +10,29 @@ from .tree import TREE_ID
 _eval_cache = {}
 # Recursion guard against cyclic graphs.
 _eval_visiting = set()
+# Set by sinks when they actually write something, so the evaluator knows it
+# must request a viewport/node-editor redraw (otherwise changes from a timer
+# don't repaint until the user interacts).
+_dirty = False
 
 
 def begin_tick():
     _eval_cache.clear()
     _eval_visiting.clear()
+
+
+def mark_dirty():
+    """Call from a sink when it writes a changed value."""
+    global _dirty
+    _dirty = True
+
+
+def consume_dirty():
+    """Return True if anything changed since the last call, and reset."""
+    global _dirty
+    was = _dirty
+    _dirty = False
+    return was
 
 
 # ---------------------------------------------------------------------------
