@@ -9,9 +9,9 @@ from bpy.types import Menu, Panel, Operator
 from .tree import TREE_ID
 from .connection import manager
 from .nodes import (
-    value, input_nodes, color_node, prop_in, mqtt_sub, math_node, map_node,
-    clamp_node, compare_node, switch_node, array_node, json_node, prop_out,
-    custom_prop, mqtt_pub, debug_out,
+    value, input_nodes, color_node, prop_in, attribute_node, mqtt_sub,
+    math_node, map_node, clamp_node, compare_node, switch_node, array_node,
+    json_node, prop_out, custom_prop, mqtt_pub, debug_out,
 )
 
 
@@ -29,6 +29,7 @@ CATEGORIES = [
         input_nodes.AQStringNode,
         color_node.AQColorNode,
         prop_in.AQPropInNode,
+        attribute_node.AQAttributeNode,
     ]),
     ("Math", [math_node.AQMathNode, map_node.AQMapNode, clamp_node.AQClampNode]),
     ("Logic", [compare_node.AQCompareNode, switch_node.AQSwitchNode]),
