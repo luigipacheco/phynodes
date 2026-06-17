@@ -1,9 +1,9 @@
 # GPL-3.0-or-later
-# Property Out node (sink): writes the graph value into a Blender property.
+# Set Property node (sink): writes the graph value directly into an existing
+# Blender data path (e.g. an object's transform), overwriting it each tick.
 #
-# The other half of the Animaquina integration: drive object transforms, custom
-# properties, etc. directly from the graph (sensors / MQTT / math), no driver
-# expressions required.
+# For a driver-friendly *generated* property instead, use the Custom Property
+# node. This node is the direct-overwrite option, no driver needed.
 
 import bpy
 from bpy.props import StringProperty
@@ -23,13 +23,13 @@ def write_data_path(data_path, value):
         exec(data_path + " = _v", ns)
         return True
     except Exception as exc:
-        print("[mqttouch] Property Out bad path:", data_path, exc)
+        print("[phynodes] Set Property bad path:", data_path, exc)
         return False
 
 
 class AQPropOutNode(AQBaseNode, Node):
     bl_idname = "PhyNodesPropOutNode"
-    bl_label = "Property Out"
+    bl_label = "Set Property"
     bl_icon = "EXPORT"
 
     is_sink = True

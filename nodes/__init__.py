@@ -5,15 +5,19 @@
 import bpy
 
 from . import (
-    value, math_node, map_node, clamp_node, compare_node, switch_node,
-    array_node, color_node, json_node,
-    mqtt_sub, mqtt_pub, prop_in, prop_out, debug_out,
+    value, input_nodes, math_node, map_node, clamp_node, compare_node,
+    switch_node, array_node, color_node, json_node,
+    mqtt_sub, mqtt_pub, prop_in, prop_out, custom_prop, debug_out,
 )
 
 # Ordered for the Add menu, grouped by role.
 NODE_CLASSES = (
     # Inputs / sources
     value.AQValueNode,
+    input_nodes.AQBooleanNode,
+    input_nodes.AQIntegerNode,
+    input_nodes.AQVectorNode,
+    input_nodes.AQStringNode,
     color_node.AQColorNode,
     prop_in.AQPropInNode,
     mqtt_sub.AQMqttSubNode,
@@ -27,6 +31,7 @@ NODE_CLASSES = (
     json_node.AQJsonParseNode,
     json_node.AQJsonStringifyNode,
     # Outputs / sinks
+    custom_prop.AQCustomPropertyNode,
     prop_out.AQPropOutNode,
     mqtt_pub.AQMqttPubNode,
     debug_out.AQDebugNode,

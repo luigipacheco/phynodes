@@ -3,14 +3,15 @@
 # the shared broker connection, and connect/disconnect operators.
 
 import bpy
+from bpy.props import StringProperty
 from bpy.types import Menu, Panel, Operator
 
 from .tree import TREE_ID
 from .connection import manager
 from .nodes import (
-    value, color_node, prop_in, mqtt_sub, math_node, map_node, clamp_node,
-    compare_node, switch_node, array_node, json_node, prop_out, mqtt_pub,
-    debug_out,
+    value, input_nodes, color_node, prop_in, mqtt_sub, math_node, map_node,
+    clamp_node, compare_node, switch_node, array_node, json_node, prop_out,
+    custom_prop, mqtt_pub, debug_out,
 )
 
 
@@ -20,13 +21,25 @@ from .nodes import (
 # ---------------------------------------------------------------------------
 
 CATEGORIES = [
-    ("Input", [value.AQValueNode, color_node.AQColorNode, prop_in.AQPropInNode]),
+    ("Input", [
+        value.AQValueNode,
+        input_nodes.AQBooleanNode,
+        input_nodes.AQIntegerNode,
+        input_nodes.AQVectorNode,
+        input_nodes.AQStringNode,
+        color_node.AQColorNode,
+        prop_in.AQPropInNode,
+    ]),
     ("Math", [math_node.AQMathNode, map_node.AQMapNode, clamp_node.AQClampNode]),
     ("Logic", [compare_node.AQCompareNode, switch_node.AQSwitchNode]),
     ("Array", [array_node.AQArrayNode]),
     ("JSON", [json_node.AQJsonParseNode, json_node.AQJsonStringifyNode]),
     ("MQTT", [mqtt_sub.AQMqttSubNode, mqtt_pub.AQMqttPubNode]),
-    ("Output", [prop_out.AQPropOutNode, debug_out.AQDebugNode]),
+    ("Output", [
+        custom_prop.AQCustomPropertyNode,
+        prop_out.AQPropOutNode,
+        debug_out.AQDebugNode,
+    ]),
 ]
 
 
@@ -95,6 +108,22 @@ class PHYNODES_OT_disconnect(Operator):
         return {"FINISHED"}
 
 
+class PHYNODES_OT_copy_driver_path(Operator):
+    bl_idname = "phynodes.copy_driver_path"
+    bl_label = "Copy Driver Path"
+    bl_description = "Copy this property's full data path to the clipboard for use in a driver"
+
+    path: StringProperty()
+
+    def execute(self, context):
+        if not self.path:
+            self.report({"WARNING"}, "No path to copy")
+            return {"CANCELLED"}
+        context.window_manager.clipboard = self.path
+        self.report({"INFO"}, "Copied: " + self.path)
+        return {"FINISHED"}
+
+
 # ---------------------------------------------------------------------------
 # N-panel
 # ---------------------------------------------------------------------------
@@ -141,6 +170,7 @@ class NODE_PT_phynodes(Panel):
 classes = tuple(_category_menus) + (
     PHYNODES_OT_connect,
     PHYNODES_OT_disconnect,
+    PHYNODES_OT_copy_driver_path,
     NODE_PT_phynodes,
 )
 
