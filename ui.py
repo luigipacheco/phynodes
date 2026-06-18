@@ -12,14 +12,18 @@ from .tree import TREE_ID
 from .connection import manager
 from .nodes import (
     value, input_nodes, color_node, time_node, prop_in, attribute_node,
-    mqtt_sub, math_node, map_node, clamp_node, compare_node, switch_node,
-    array_node, json_node, prop_out, custom_prop, mqtt_pub, debug_out,
+    mqtt_sub, math_node, map_node, clamp_node, easing_node, compare_node,
+    float_curve, switch_node, array_node, array_reduce, string_node, json_node,
+    prop_out, custom_prop, mqtt_pub, debug_out,
 )
 
-# Blender's own helper for adding node-type entries to a menu (consistent with
-# how the built-in node Add menus are built). Fall back if unavailable.
+# Blender's own helper for adding node-type entries to a menu, when available.
+# Its API differs across versions (e.g. Blender 5.2 has no add_node_type), so we
+# only use it when the function exists and otherwise fall back to node.add_node.
 try:
     from bl_ui import node_add_menu
+    if not hasattr(node_add_menu, "add_node_type"):
+        node_add_menu = None
 except Exception:
     node_add_menu = None
 
@@ -42,9 +46,13 @@ CATEGORIES = [
         prop_in.AQPropInNode,
         attribute_node.AQAttributeNode,
     ]),
-    ("Math", [math_node.AQMathNode, map_node.AQMapNode, clamp_node.AQClampNode]),
+    ("Math", [
+        math_node.AQMathNode, map_node.AQMapNode, clamp_node.AQClampNode,
+        easing_node.AQEasingNode, float_curve.AQFloatCurveNode,
+    ]),
     ("Logic", [compare_node.AQCompareNode, switch_node.AQSwitchNode]),
-    ("Array", [array_node.AQArrayNode]),
+    ("Array", [array_node.AQArrayNode, array_reduce.AQArrayReduceNode]),
+    ("String", [string_node.AQStringOpNode]),
     ("JSON", [json_node.AQJsonParseNode, json_node.AQJsonStringifyNode]),
     ("MQTT", [mqtt_sub.AQMqttSubNode, mqtt_pub.AQMqttPubNode]),
     ("Output", [

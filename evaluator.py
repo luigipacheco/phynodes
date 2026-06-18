@@ -3,6 +3,7 @@
 # PhyNodes tree, which pulls the rest of the graph lazily.
 
 import bpy
+from bpy.app.handlers import persistent
 
 from . import base
 from .tree import TREE_ID
@@ -49,11 +50,27 @@ def _tick():
     return interval
 
 
-def register():
+def _ensure_timer():
+    """(Re)register the eval timer if it isn't running."""
     if not bpy.app.timers.is_registered(_tick):
-        bpy.app.timers.register(_tick, first_interval=0.5)
+        bpy.app.timers.register(_tick, first_interval=0.2)
+
+
+@persistent
+def _on_load(*_args):
+    # App timers don't survive opening a new .blend / reloading scripts, so
+    # make sure the eval timer is alive again afterwards.
+    _ensure_timer()
+
+
+def register():
+    _ensure_timer()
+    if _on_load not in bpy.app.handlers.load_post:
+        bpy.app.handlers.load_post.append(_on_load)
 
 
 def unregister():
+    if _on_load in bpy.app.handlers.load_post:
+        bpy.app.handlers.load_post.remove(_on_load)
     if bpy.app.timers.is_registered(_tick):
         bpy.app.timers.unregister(_tick)

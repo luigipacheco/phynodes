@@ -6,7 +6,8 @@ import bpy
 
 from . import (
     value, input_nodes, time_node, math_node, map_node, clamp_node,
-    compare_node, switch_node, array_node, color_node, json_node,
+    easing_node, float_curve, compare_node, switch_node, array_node,
+    array_reduce, string_node, color_node, json_node,
     mqtt_sub, mqtt_pub, prop_in, attribute_node, prop_out, custom_prop,
     debug_out,
 )
@@ -29,9 +30,13 @@ NODE_CLASSES = (
     math_node.AQMathNode,
     map_node.AQMapNode,
     clamp_node.AQClampNode,
+    easing_node.AQEasingNode,
+    float_curve.AQFloatCurveNode,
     compare_node.AQCompareNode,
     switch_node.AQSwitchNode,
     array_node.AQArrayNode,
+    array_reduce.AQArrayReduceNode,
+    string_node.AQStringOpNode,
     json_node.AQJsonParseNode,
     json_node.AQJsonStringifyNode,
     # Outputs / sinks
