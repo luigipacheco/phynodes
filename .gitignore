@@ -16,8 +16,7 @@ Thumbs.db
 *.blend1
 *.blend2
 
-# Vendored wheels (add explicitly when shipping)
-wheels/
+# Vendored wheels are shipped (declared in blender_manifest.toml) — keep them.
 
 # Build output from build.ps1
 phynodes-*.zip

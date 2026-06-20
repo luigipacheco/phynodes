@@ -14,6 +14,10 @@ blender_version_min = "4.2.0"
 
 website = "https://www.animaquina.com"
 
-# paho-mqtt is required at runtime. It is not bundled here yet; install it into
-# Blender's Python (pip install paho-mqtt) or vendor it before shipping.
-# wheels = []
+# Bundled Python dependencies. paho-mqtt is pure-Python (py3-none-any), so the
+# one universal wheel covers every platform. Blender installs it on enable, so
+# users don't need pip. Refresh with:
+#   python -m pip download paho-mqtt --only-binary=:all: --no-deps -d wheels
+wheels = [
+    "./wheels/paho_mqtt-2.1.0-py3-none-any.whl",
+]

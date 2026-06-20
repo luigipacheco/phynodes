@@ -12,7 +12,7 @@ Part of the **[Animaquina](https://www.animaquina.com)** robot-IDE family.
 Ports the [mqttouch](https://github.com/luigipacheco/MqttTouch) (Godot) node
 editor into Blender.
 
-> Status: **beta**, MIT-of-the-maker-spirit but GPL-3.0 licensed. Things move.
+> Status: **beta** — under active development, APIs and nodes may change.
 
 ---
 
@@ -58,19 +58,25 @@ Raspberry Pi, Node-RED, Home Assistant, or a Python script on your bench.
   per-socket defaults shown in the N-panel, geometry-nodes style.
 - **Time & math** — Scene Time, a continuous Timer, and a Blender-style Math
   node for LFOs, easing, and timing.
+- **Nothing to install** — `paho-mqtt` is bundled with the add-on.
 
 ## Requirements
 
-- **Blender 4.2+**
-- **`paho-mqtt`** in Blender's Python — `pip install paho-mqtt`
-- An **MQTT broker** (e.g. [Mosquitto](https://mosquitto.org), HiveMQ, or the
-  public `test.mosquitto.org`)
+- **Blender 4.2 or newer**
+- An **MQTT broker** — e.g. [Mosquitto](https://mosquitto.org), HiveMQ, or the
+  public test server `test.mosquitto.org`
+
+`paho-mqtt` is **bundled** and installed automatically, so there's no `pip` step.
 
 ## Install
 
-1. Download the `phynodes` folder (or a release zip).
-2. Blender → **Edit ▸ Preferences ▸ Add-ons ▸ Install…** and pick the folder/zip.
-3. Enable **PhyNodes**.
+1. Download the latest **`phynodes-x.y.z.zip`** from Releases.
+2. Blender → **Edit ▸ Preferences ▸ Get Extensions ▸ Install from Disk…**
+   (or **Add-ons ▸ Install…**) and pick the zip.
+3. Enable **PhyNodes**. Blender installs the bundled `paho-mqtt` on enable.
+
+> Install from the **zip** so the bundled MQTT wheel is picked up. If MQTT can't
+> connect after enabling, disable then re-enable the add-on once.
 
 ## Quick start
 
@@ -180,12 +186,48 @@ Evaluation is **pull-based**: each node computes its output by pulling upstream
 inputs (cached per tick, cycle-guarded). Sink nodes are the entry points the
 ~50 ms timer drives.
 
+## Building from source
+
+**Any OS** — Blender's own extension builder (recommended):
+
+```sh
+blender --command extension build --source-dir . --output-dir .
+```
+
+**Windows / PowerShell** — convenience script that also compile-checks and can
+sync into Blender for testing:
+
+```powershell
+.\build.ps1                       # compile-check + build phynodes-<version>.zip
+.\build.ps1 -Sync                 # also copy into Blender's extensions folder
+.\build.ps1 -Sync -Blender 5.2    # target a specific Blender version
+```
+
+The zip keeps `blender_manifest.toml` at its root (required by Blender) and
+bundles the `paho-mqtt` wheel from `wheels/`. To refresh that wheel:
+
+```sh
+python -m pip download paho-mqtt --only-binary=:all: --no-deps -d wheels
+```
+
+## Troubleshooting
+
+- **No nodes in the Add menu** — set the node editor's tree type to *PhyNodes*
+  and make sure the add-on is enabled. After updating, **fully restart Blender**
+  (a "Reload Scripts" can drop the evaluation timer).
+- **A value doesn't propagate** — it only flows if it's wired to a **sink**
+  (Custom Property / Set Property / MQTT PUB / Debug), and the graph is
+  **Enabled** in the N-panel.
+- **Can't connect** — check broker host/port; the N-panel shows the error.
+- **paho-mqtt not installed** — install from the **zip** (so the bundled wheel
+  is used), then disable/enable the add-on once.
+
 ## Roadmap
 
-- Vendored `paho-mqtt` wheel so the extension installs with no pip step
-- Optional per-node broker override
-- Writing MQTT data back into geometry-node attributes
-- More nodes: curve/spline lookup, array map/filter, vector ops
+- More transports beyond MQTT (OSC, serial, …) behind a connector layer
+- Geometry-Nodes-style typed sockets, unit subtypes, node groups
+- Digital-twin helpers: record/playback, two-way binding, output safety
+- Optional per-node broker override; writing back into geometry attributes
 
 ## License & credits
 
