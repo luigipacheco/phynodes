@@ -9,9 +9,9 @@
 bl_info = {
     "name": "PhyNodes",
     "author": "Luis Arturo Pacheco",
-    "description": "Connect Blender to physical inputs and outputs through MQTT, using a node graph.",
+    "description": "Connect Blender to physical inputs and outputs through MQTT and OSC, using a node graph.",
     "blender": (4, 2, 0),
-    "version": (0, 2, 0),
+    "version": (0, 3, 0),
     "location": "Node Editor > PhyNodes",
     "warning": "Beta — requires paho-mqtt in Blender's Python.",
     "doc_url": "https://www.animaquina.com",

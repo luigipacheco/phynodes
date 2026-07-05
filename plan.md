@@ -50,11 +50,11 @@ and others are coming, so the graph must be **transport-agnostic**.
 nodes, and the settings panel all assume one broker. Adding OSC/serial today
 means copy-pasting that structure. Phase 1 generalizes it.
 
-> **Status: Phase 1 landed in v0.2.0.** `connection.py` became the
-> `connectors/` package (base interface + registry + MQTT implementation with
-> auto-reconnect and per-topic subscriptions), the N-panel is a named
-> connections list, and MQTT SUB/PUB resolve their connector by name (empty =
-> first MQTT connection, which keeps old files working).
+> **Status: Phase 1 landed in v0.2.0, Phase 2 (OSC) in v0.3.0.**
+> `connection.py` became the `connectors/` package (base interface + registry
+> + MQTT with auto-reconnect and per-topic subscriptions + OSC), the N-panel
+> is a named connections list, and I/O nodes resolve their connector by name
+> (empty = first connection of their type, which keeps old files working).
 
 ## 4. Core architecture: the Connector layer
 
@@ -137,8 +137,8 @@ class Connector:
 | Transport | Python lib | Dir. | Why it matters | Priority |
 |-----------|-----------|------|----------------|----------|
 | **MQTT** | paho-mqtt | ⇄ | IoT, ESP32, Node-RED, Home Assistant | ✅ done |
-| **OSC** | python-osc | ⇄ | TouchOSC, Max/MSP, Pd, VJ/interactive, mocap | ★ next |
-| **Zenoh** | eclipse-zenoh | ⇄ | Broker-less peer mode, ROS 2 interop (rmw_zenoh / zenoh-bridge-ros2dds), robot fleets | ★ after OSC |
+| **OSC** | python-osc | ⇄ | TouchOSC, Max/MSP, Pd, VJ/interactive, mocap | ✅ done |
+| **Zenoh** | eclipse-zenoh | ⇄ | Broker-less peer mode, ROS 2 interop (rmw_zenoh / zenoh-bridge-ros2dds), robot fleets | ★ next |
 | **Serial** | pyserial | ⇄ | Arduino/microcontrollers direct, no broker | ◐ |
 | **WebSocket** | websockets | ⇄ | Browsers, web dashboards, p5.js | ◐ |
 | **Art-Net / sACN / DMX** | (lib) | → | Stage lighting, LED fixtures | ◐ |
@@ -170,12 +170,13 @@ queryables/liveliness (e.g. a "device online" node) are later extras.
   named connections list in the N-panel with legacy-settings migration;
   SUB/PUB on the `ConnectorIONode` base; bpy-free helpers split into
   `values.py` with unit tests + CI.
-- **Phase 2 — OSC.** First proof the abstraction holds with a second transport.
-  Bundle python-osc; config = listen port (0 = receive off) + send host:port;
-  `ThreadingOSCUDPServer` feeding the inbox (1 arg → scalar, n args → array);
-  `SimpleUDPClient` for send. OSC In/Out nodes. Exact address match first;
-  OSC pattern matching and bundles/timetags as follow-ups. Verify against
-  TouchOSC / Protokol.
+- **Phase 2 — OSC. ✅ done (v0.3.0).** python-osc bundled (universal wheel);
+  `connectors/osc.py` with listen port (0 = receive off) + send host:port,
+  `ThreadingOSCUDPServer` feeding the inbox (1 arg → scalar, n args → array),
+  `SimpleUDPClient` for send; OSC In/Out nodes; switching an entry's type in
+  the N-panel resets its fields to that transport's defaults; loopback test
+  runs against the vendored wheel. Follow-ups: OSC pattern matching
+  (`/fader/*`), bundles/timetags, manual TouchOSC / Protokol verification.
 - **Phase 3 — Zenoh.** Packaging first: per-platform eclipse-zenoh wheels,
   `--split-platforms` release builds, lazy import (a platform without a wheel
   just shows "Zenoh unavailable"). Config = mode (peer/client) + optional

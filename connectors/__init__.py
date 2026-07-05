@@ -7,9 +7,10 @@
 
 from .base import Connector, DISCONNECTED, CONNECTING, CONNECTED, ERROR
 from .mqtt import MQTTConnector
+from .osc import OSCConnector
 
-# type_id -> class. New transports (OSC, Zenoh, Serial, ...) register here.
-TYPES = {cls.type_id: cls for cls in (MQTTConnector,)}
+# type_id -> class. New transports (Zenoh, Serial, ...) register here.
+TYPES = {cls.type_id: cls for cls in (MQTTConnector, OSCConnector)}
 
 
 def type_items():

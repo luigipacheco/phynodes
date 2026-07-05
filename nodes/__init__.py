@@ -8,8 +8,8 @@ from . import (
     value, input_nodes, time_node, math_node, map_node, clamp_node,
     easing_node, float_curve, compare_node, switch_node, array_node,
     array_reduce, string_node, color_node, json_node,
-    mqtt_sub, mqtt_pub, prop_in, attribute_node, prop_out, custom_prop,
-    debug_out,
+    mqtt_sub, mqtt_pub, osc_in, osc_out, prop_in, attribute_node, prop_out,
+    custom_prop, debug_out,
 )
 
 # Ordered for the Add menu, grouped by role.
@@ -26,6 +26,7 @@ NODE_CLASSES = (
     prop_in.AQPropInNode,
     attribute_node.AQAttributeNode,
     mqtt_sub.AQMqttSubNode,
+    osc_in.AQOscInNode,
     # Processors
     math_node.AQMathNode,
     map_node.AQMapNode,
@@ -43,6 +44,7 @@ NODE_CLASSES = (
     custom_prop.AQCustomPropertyNode,
     prop_out.AQPropOutNode,
     mqtt_pub.AQMqttPubNode,
+    osc_out.AQOscOutNode,
     debug_out.AQDebugNode,
 )
 

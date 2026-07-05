@@ -52,6 +52,12 @@ class MQTTConnector(Connector):
         }
 
     @classmethod
+    def apply_defaults(cls, item):
+        item.host = "test.mosquitto.org"
+        item.port = 1883
+        item.topic_prefix = "/phynodes/"
+
+    @classmethod
     def draw_config(cls, layout, item):
         col = layout.column(align=True)
         col.prop(item, "host")

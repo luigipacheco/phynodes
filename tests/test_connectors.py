@@ -128,5 +128,63 @@ def test_mqtt_start_without_paho_reports_error():
     assert "paho" in conn.last_error
 
 
+# -- OSC ----------------------------------------------------------------------
+
+def test_osc_address_normalization():
+    norm = connectors.OSCConnector._norm
+    assert norm("/fader/1") == "/fader/1"
+    assert norm("fader/1") == "/fader/1"
+
+
+def test_osc_write_without_client_fails_cleanly():
+    conn = connectors.OSCConnector("o")
+    assert conn.write("/x", 1.0) is False
+
+
+def test_osc_start_unconfigured_reports_error():
+    conn = connectors.OSCConnector("o")
+    ok = conn.start({"listen_port": 0, "send_host": "", "send_port": 0})
+    # fails either as "nothing to do" or as "python-osc missing" — both are
+    # errors surfaced to the panel, never a silent half-start
+    assert ok is False
+    assert conn.last_error
+
+
+def test_osc_loopback():
+    if not connectors.OSCConnector.available():
+        return  # python-osc not installed here (CI installs it)
+    import socket
+    import time
+
+    # grab a free UDP port
+    probe = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    probe.bind(("127.0.0.1", 0))
+    port = probe.getsockname()[1]
+    probe.close()
+
+    conn = connectors.OSCConnector("o")
+    ok = conn.start({"listen_port": port, "send_host": "127.0.0.1", "send_port": port})
+    assert ok, conn.last_error
+    try:
+        assert conn.status == connectors.CONNECTED
+
+        def _wait_for(address):
+            for _ in range(100):
+                value = conn.read(address)
+                if value is not None:
+                    return value
+                time.sleep(0.02)
+            raise AssertionError("no message on %s" % address)
+
+        assert conn.write("/x", 1.5)
+        assert _wait_for("/x") == 1.5
+        # multi-argument messages come out as arrays
+        assert conn.write("/multi", [1, 2])
+        assert _wait_for("/multi") == [1, 2]
+    finally:
+        conn.stop()
+    assert conn.status == connectors.DISCONNECTED
+
+
 if __name__ == "__main__":
     run_tests(globals())

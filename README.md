@@ -2,7 +2,7 @@
 
 **Physical computing for Blender.** Wire sensors, actuators, and the physical
 world into Blender through a native node editor — like shader nodes, but the
-values come from real hardware over MQTT.
+values come from real hardware over MQTT or OSC.
 
 A temperature sensor rotates a dial. A distance sensor drives a mesh. A slider in
 Blender dims a real LED. PhyNodes turns Blender into a live interface between the
@@ -52,21 +52,27 @@ Raspberry Pi, Node-RED, Home Assistant, or a Python script on your bench.
   adjustable); changes repaint the viewport without you clicking.
 - **Bi-directional MQTT** — named broker connections (add several if you need
   them) with auto-reconnect; SUB nodes bring data in, PUB nodes send it out.
+- **Bi-directional OSC** — receive on a UDP port, send to a host:port; talks
+  to TouchOSC, Max/MSP, Pure Data, VJ tools, and mocap software. No broker
+  needed.
 - **Blender as I/O** — read/write object properties and **geometry-node
   attributes**; generate driver-ready custom properties.
 - **Typed sockets** — Float / Int / Bool / Vector / Color / String / Any, with
   per-socket defaults shown in the N-panel, geometry-nodes style.
 - **Time & math** — Scene Time, a continuous Timer, and a Blender-style Math
   node for LFOs, easing, and timing.
-- **Nothing to install** — `paho-mqtt` is bundled with the add-on.
+- **Nothing to install** — `paho-mqtt` and `python-osc` are bundled with the
+  add-on.
 
 ## Requirements
 
 - **Blender 4.2 or newer**
-- An **MQTT broker** — e.g. [Mosquitto](https://mosquitto.org), HiveMQ, or the
-  public test server `test.mosquitto.org`
+- For MQTT: an **MQTT broker** — e.g. [Mosquitto](https://mosquitto.org),
+  HiveMQ, or the public test server `test.mosquitto.org`. OSC needs nothing —
+  it's direct UDP.
 
-`paho-mqtt` is **bundled** and installed automatically, so there's no `pip` step.
+`paho-mqtt` and `python-osc` are **bundled** and installed automatically, so
+there's no `pip` step.
 
 ## Install
 
@@ -122,6 +128,21 @@ Geometry Attribute  (object, attribute: position, All Elements)
    └─▶ MQTT PUB  (topic: points)
 ```
 
+### Drive Blender from TouchOSC
+
+Add a connection, set its **Type** to **OSC** (defaults: listen on `9001`,
+send to `127.0.0.1:9000`), and **Connect**. Point TouchOSC at your machine's
+IP, port `9001`.
+
+```
+OSC In  (address: /1/fader1)
+   └─▶ Map Range  (0..1 → 0..6.28)
+          └─▶ Custom Property  (name: spin)   →  driver as usual
+```
+
+`OSC Out` works the same way in reverse — wire any value into it and it sends
+to the connection's send host/port.
+
 ## Node reference
 
 ### Inputs
@@ -136,6 +157,7 @@ Geometry Attribute  (object, attribute: position, All Elements)
 | **Property In** | Reads a Blender data path |
 | **Geometry Attribute** | Reads a mesh / geometry-nodes attribute (scalar, vector, or per-element array) |
 | **MQTT SUB** | Latest message on a topic (parses JSON / CSV / number / string) |
+| **OSC In** | Latest value on an OSC address (already typed; multi-arg → array) |
 
 ### Processors
 | Node | Does |
@@ -158,10 +180,12 @@ Geometry Attribute  (object, attribute: position, All Elements)
 | **Custom Property** | Generates a driver-ready custom property (`scene["name"]`) of a chosen type; **Copy Var Path** for a driver variable |
 | **Set Property** | Writes directly into an existing data path each tick |
 | **MQTT PUB** | Publishes the input to a topic (on change) |
+| **OSC Out** | Sends the input to an OSC address (on change; arrays → argument list) |
 | **Debug** | Shows the latest value in the node body |
 
-**Sinks** (Custom Property, Set Property, MQTT PUB, Debug) are the roots the
-timer evaluates each tick; everything upstream is pulled lazily and memoized.
+**Sinks** (Custom Property, Set Property, MQTT PUB, OSC Out, Debug) are the
+roots the timer evaluates each tick; everything upstream is pulled lazily and
+memoized.
 
 ## Typed sockets
 
@@ -179,7 +203,7 @@ and optional min/max.
 | `base.py` | Node base class, pull-based memoized evaluation |
 | `values.py` | bpy-free value/payload utilities (unit-tested in `tests/`) |
 | `evaluator.py` | The timer: evaluates sink nodes and requests redraws |
-| `connectors/` | Transport layer: `base.py` (connector interface + threading contract), `mqtt.py` (threaded `paho-mqtt` with auto-reconnect), registry in `__init__.py` |
+| `connectors/` | Transport layer: `base.py` (connector interface + threading contract), `mqtt.py` (threaded `paho-mqtt` with auto-reconnect), `osc.py` (`python-osc` UDP server + client), registry in `__init__.py` |
 | `settings.py` | Scene-level connections list + refresh interval |
 | `nodes/` | One module per node; `io_base.py` is the shared base for transport I/O nodes |
 | `ui.py` | Categorized Add menu + Connections N-panel |
@@ -206,10 +230,11 @@ sync into Blender for testing:
 ```
 
 The zip keeps `blender_manifest.toml` at its root (required by Blender) and
-bundles the `paho-mqtt` wheel from `wheels/`. To refresh that wheel:
+bundles the `paho-mqtt` and `python-osc` wheels from `wheels/`. To refresh
+them:
 
 ```sh
-python -m pip download paho-mqtt --only-binary=:all: --no-deps -d wheels
+python -m pip download paho-mqtt python-osc --only-binary=:all: --no-deps -d wheels
 ```
 
 ## Troubleshooting
@@ -228,8 +253,8 @@ python -m pip download paho-mqtt --only-binary=:all: --no-deps -d wheels
 
 ## Roadmap
 
-- More transports behind the connector layer (landed in 0.2): **OSC** next,
-  then **Zenoh** (broker-less peer mode + ROS 2 interop), serial, …
+- More transports behind the connector layer (landed in 0.2; OSC in 0.3):
+  **Zenoh** next (broker-less peer mode + ROS 2 interop), then serial, …
 - Geometry-Nodes-style typed sockets, unit subtypes, node groups
 - Digital-twin helpers: record/playback, two-way binding, output safety
 - Writing back into geometry attributes

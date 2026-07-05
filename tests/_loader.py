@@ -9,6 +9,13 @@ import traceback
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
+# Make the bundled pure-Python wheels importable (a wheel is a zip), so the
+# connector tests exercise exactly the vendored paho-mqtt / python-osc
+# versions without installing anything.
+for _whl in sorted((ROOT / "wheels").glob("*.whl")):
+    if str(_whl) not in sys.path:
+        sys.path.insert(0, str(_whl))
+
 
 def load_module(name, relpath, package_dir=None):
     """Load a module (or, with package_dir, a package) from the addon tree

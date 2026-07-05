@@ -14,7 +14,7 @@ from .nodes import (
     value, input_nodes, color_node, time_node, prop_in, attribute_node,
     mqtt_sub, math_node, map_node, clamp_node, easing_node, compare_node,
     float_curve, switch_node, array_node, array_reduce, string_node, json_node,
-    prop_out, custom_prop, mqtt_pub, debug_out,
+    prop_out, custom_prop, mqtt_pub, osc_in, osc_out, debug_out,
 )
 
 # Blender's own helper for adding node-type entries to a menu, when available.
@@ -55,6 +55,7 @@ CATEGORIES = [
     ("String", [string_node.AQStringOpNode]),
     ("JSON", [json_node.AQJsonParseNode, json_node.AQJsonStringifyNode]),
     ("MQTT", [mqtt_sub.AQMqttSubNode, mqtt_pub.AQMqttPubNode]),
+    ("OSC", [osc_in.AQOscInNode, osc_out.AQOscOutNode]),
     ("Output", [
         custom_prop.AQCustomPropertyNode,
         prop_out.AQPropOutNode,

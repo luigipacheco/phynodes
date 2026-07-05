@@ -52,6 +52,13 @@ class Connector:
         return {}
 
     @classmethod
+    def apply_defaults(cls, item):
+        """Reset the transport fields of a scene connector entry to this
+        transport's sensible defaults (called when the user switches an
+        entry's type)."""
+        pass
+
+    @classmethod
     def draw_config(cls, layout, item):
         """Draw this transport's config fields in the N-panel."""
         pass

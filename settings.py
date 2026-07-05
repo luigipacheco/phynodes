@@ -11,10 +11,18 @@ from bpy.props import (
 )
 from bpy.types import PropertyGroup
 
-from .connectors import type_items
+from .connectors import type_items, TYPES
 
 # Static per release — connector types are registered at import time.
 _CONNECTOR_TYPE_ITEMS = type_items()
+
+
+def _on_type_change(self, context):
+    """Switching an entry's transport resets its fields to that transport's
+    defaults (an MQTT broker hostname is meaningless as an OSC send host)."""
+    cls = TYPES.get(self.conn_type)
+    if cls is not None:
+        cls.apply_defaults(self)
 
 
 class PhyNodesConnectorConfig(PropertyGroup):
@@ -28,10 +36,11 @@ class PhyNodesConnectorConfig(PropertyGroup):
         name="Type",
         items=_CONNECTOR_TYPE_ITEMS,
         default="MQTT",
+        update=_on_type_change,
     )
     host: StringProperty(
         name="Host",
-        description="IP or hostname to connect to (e.g. the MQTT broker)",
+        description="IP or hostname to connect to (MQTT broker / OSC send target)",
         default="test.mosquitto.org",
     )
     port: IntProperty(
@@ -44,6 +53,13 @@ class PhyNodesConnectorConfig(PropertyGroup):
         name="Topic Prefix",
         description="Prepended to every node topic (e.g. /phynodes/)",
         default="/phynodes/",
+    )
+    listen_port: IntProperty(
+        name="Listen Port",
+        description="UDP port to receive OSC on (0 = receive off)",
+        default=9001,
+        min=0,
+        max=65535,
     )
 
 

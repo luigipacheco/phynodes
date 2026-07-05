@@ -4,9 +4,9 @@
 
 schema_version = "1.0.0"
 id = "phynodes"
-version = "0.2.0"
+version = "0.3.0"
 name = "PhyNodes"
-tagline = "Connect Blender to physical inputs and outputs through MQTT"
+tagline = "Connect Blender to physical inputs and outputs through MQTT and OSC"
 type = "add-on"
 maintainer = "Luis Arturo Pacheco"
 license = ["SPDX:GPL-3.0-or-later"]
@@ -14,12 +14,13 @@ blender_version_min = "4.2.0"
 
 website = "https://www.animaquina.com"
 
-# Bundled Python dependencies. paho-mqtt is pure-Python (py3-none-any), so the
-# one universal wheel covers every platform. Blender installs it on enable, so
-# users don't need pip. Refresh with:
-#   python -m pip download paho-mqtt --only-binary=:all: --no-deps -d wheels
+# Bundled Python dependencies. paho-mqtt and python-osc are pure-Python
+# (py3-none-any), so one universal wheel each covers every platform. Blender
+# installs them on enable, so users don't need pip. Refresh with:
+#   python -m pip download <name> --only-binary=:all: --no-deps -d wheels
 wheels = [
     "./wheels/paho_mqtt-2.1.0-py3-none-any.whl",
+    "./wheels/python_osc-1.10.2-py3-none-any.whl",
 ]
 
 # Keep dev-only files out of the extension zip when building with
