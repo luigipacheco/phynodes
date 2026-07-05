@@ -1,15 +1,15 @@
 # GPL-3.0-or-later
-# Node-editor UI: a categorized Add menu (geometry-nodes style), an N-panel for
-# the shared broker connection, and connect/disconnect operators.
+# Node-editor UI: a categorized Add menu (geometry-nodes style), an N-panel
+# listing the scene's connections, and connector operators.
 
 import time
 
 import bpy
 from bpy.props import StringProperty
-from bpy.types import Menu, Panel, Operator
+from bpy.types import Menu, Panel, Operator, UIList
 
 from .tree import TREE_ID
-from .connection import manager
+from . import connectors
 from .nodes import (
     value, input_nodes, color_node, time_node, prop_in, attribute_node,
     mqtt_sub, math_node, map_node, clamp_node, easing_node, compare_node,
@@ -100,36 +100,99 @@ def _draw_add_menu(self, context):
 
 
 # ---------------------------------------------------------------------------
-# Operators
+# Connector operators
 # ---------------------------------------------------------------------------
 
-class PHYNODES_OT_connect(Operator):
-    bl_idname = "phynodes.connect"
-    bl_label = "Connect"
-    bl_description = "Connect the shared MQTT client to the broker"
+def _active_item(settings):
+    idx = settings.active_connector_index
+    if 0 <= idx < len(settings.connectors):
+        return settings.connectors[idx]
+    return None
+
+
+def _unique_name(collection, base):
+    existing = {c.name for c in collection}
+    name = base
+    i = 1
+    while name in existing:
+        name = "%s.%03d" % (base, i)
+        i += 1
+    return name
+
+
+class PHYNODES_OT_connector_add(Operator):
+    bl_idname = "phynodes.connector_add"
+    bl_label = "Add Connection"
+    bl_description = "Add a new connection to the list"
 
     def execute(self, context):
         s = context.scene.phynodes
-        if not manager.available:
-            self.report({"ERROR"}, "paho-mqtt is not installed in Blender's Python")
-            return {"CANCELLED"}
-        ok = manager.run(s.broker_host, s.topic_prefix, s.broker_port)
-        if not ok:
-            self.report({"ERROR"}, manager.last_error or "Could not start client")
-            return {"CANCELLED"}
-        self.report({"INFO"}, "Connecting to %s" % s.broker_host)
+        name = _unique_name(s.connectors, "MQTT")
+        item = s.connectors.add()
+        item.name = name
+        s.active_connector_index = len(s.connectors) - 1
         return {"FINISHED"}
 
 
-class PHYNODES_OT_disconnect(Operator):
-    bl_idname = "phynodes.disconnect"
-    bl_label = "Disconnect"
-    bl_description = "Disconnect the shared MQTT client"
+class PHYNODES_OT_connector_remove(Operator):
+    bl_idname = "phynodes.connector_remove"
+    bl_label = "Remove Connection"
+    bl_description = "Disconnect and remove the selected connection"
 
     def execute(self, context):
-        manager.stop()
+        s = context.scene.phynodes
+        item = _active_item(s)
+        if item is None:
+            return {"CANCELLED"}
+        connectors.stop(item.name)
+        s.connectors.remove(s.active_connector_index)
+        s.active_connector_index = min(
+            s.active_connector_index, len(s.connectors) - 1)
+        connectors.prune({c.name for c in s.connectors})
         return {"FINISHED"}
 
+
+class PHYNODES_OT_connector_connect(Operator):
+    bl_idname = "phynodes.connector_connect"
+    bl_label = "Connect"
+    bl_description = "Start the selected connection"
+
+    def execute(self, context):
+        s = context.scene.phynodes
+        item = _active_item(s)
+        if item is None:
+            return {"CANCELLED"}
+        cls = connectors.TYPES.get(item.conn_type)
+        if cls is None:
+            self.report({"ERROR"}, "Unknown connector type: %s" % item.conn_type)
+            return {"CANCELLED"}
+        if not cls.available():
+            self.report({"ERROR"}, "%s is not installed in Blender's Python" % cls.requires)
+            return {"CANCELLED"}
+        # Sweep instances orphaned by renamed/removed entries before starting.
+        connectors.prune({c.name for c in s.connectors})
+        connectors.start(item.name, item.conn_type, cls.config_from_item(item))
+        self.report({"INFO"}, "Connecting '%s'..." % item.name)
+        return {"FINISHED"}
+
+
+class PHYNODES_OT_connector_disconnect(Operator):
+    bl_idname = "phynodes.connector_disconnect"
+    bl_label = "Disconnect"
+    bl_description = "Stop the selected connection"
+
+    def execute(self, context):
+        s = context.scene.phynodes
+        item = _active_item(s)
+        if item is not None:
+            connectors.stop(item.name)
+        connectors.prune({c.name for c in s.connectors})
+        return {"FINISHED"}
+
+
+# ---------------------------------------------------------------------------
+# Node operators
+# ---------------------------------------------------------------------------
 
 class PHYNODES_OT_reset_timer(Operator):
     bl_idname = "phynodes.reset_timer"
@@ -168,9 +231,26 @@ class PHYNODES_OT_copy_driver_path(Operator):
 # N-panel
 # ---------------------------------------------------------------------------
 
+_STATUS_ICONS = {
+    connectors.CONNECTED: "LINKED",
+    connectors.CONNECTING: "SORTTIME",
+    connectors.ERROR: "ERROR",
+    connectors.DISCONNECTED: "UNLINKED",
+}
+
+
+class PHYNODES_UL_connectors(UIList):
+    def draw_item(self, context, layout, data, item, icon, active_data, active_propname):
+        row = layout.row(align=True)
+        row.prop(item, "name", text="", emboss=False)
+        conn = connectors.get(item.name)
+        status = conn.status if conn is not None else connectors.DISCONNECTED
+        row.label(text="", icon=_STATUS_ICONS[status])
+
+
 class NODE_PT_phynodes(Panel):
     bl_idname = "NODE_PT_phynodes"
-    bl_label = "PhyNodes Broker"
+    bl_label = "Connections"
     bl_space_type = "NODE_EDITOR"
     bl_region_type = "UI"
     bl_category = "PhyNodes"
@@ -184,35 +264,49 @@ class NODE_PT_phynodes(Panel):
         layout = self.layout
         s = context.scene.phynodes
 
-        if not manager.available:
-            box = layout.box()
-            box.label(text="paho-mqtt not installed", icon="ERROR")
-            box.label(text="pip install paho-mqtt")
+        row = layout.row()
+        row.template_list("PHYNODES_UL_connectors", "", s, "connectors",
+                          s, "active_connector_index", rows=2)
+        col = row.column(align=True)
+        col.operator(PHYNODES_OT_connector_add.bl_idname, text="", icon="ADD")
+        col.operator(PHYNODES_OT_connector_remove.bl_idname, text="", icon="REMOVE")
 
-        col = layout.column(align=True)
-        col.prop(s, "broker_host")
-        col.prop(s, "broker_port")
-        col.prop(s, "topic_prefix")
+        item = _active_item(s)
+        if item is not None:
+            box = layout.box()
+            box.prop(item, "conn_type", text="Type")
+            cls = connectors.TYPES.get(item.conn_type)
+            if cls is not None:
+                if not cls.available():
+                    box.label(text="%s not installed" % cls.requires, icon="ERROR")
+                cls.draw_config(box, item)
+
+            conn = connectors.get(item.name)
+            status = conn.status if conn is not None else connectors.DISCONNECTED
+            row = box.row(align=True)
+            if status == connectors.CONNECTED:
+                row.label(text="Connected", icon="LINKED")
+                row.operator(PHYNODES_OT_connector_disconnect.bl_idname, text="", icon="X")
+            elif status == connectors.CONNECTING:
+                row.label(text="Connecting...", icon="SORTTIME")
+                row.operator(PHYNODES_OT_connector_disconnect.bl_idname, text="", icon="X")
+            else:
+                row.operator(PHYNODES_OT_connector_connect.bl_idname, icon="PLAY")
+            if conn is not None and conn.last_error:
+                box.label(text=conn.last_error[:48], icon="ERROR")
 
         layout.prop(s, "enabled")
         layout.prop(s, "eval_interval")
 
-        row = layout.row(align=True)
-        if manager.connected:
-            row.label(text="Connected", icon="LINKED")
-            row.operator(PHYNODES_OT_disconnect.bl_idname, text="", icon="X")
-        else:
-            row.operator(PHYNODES_OT_connect.bl_idname, icon="PLAY")
-
-        if manager.last_error:
-            layout.label(text=manager.last_error[:48], icon="ERROR")
-
 
 classes = tuple(_category_menus) + (
-    PHYNODES_OT_connect,
-    PHYNODES_OT_disconnect,
+    PHYNODES_OT_connector_add,
+    PHYNODES_OT_connector_remove,
+    PHYNODES_OT_connector_connect,
+    PHYNODES_OT_connector_disconnect,
     PHYNODES_OT_copy_driver_path,
     PHYNODES_OT_reset_timer,
+    PHYNODES_UL_connectors,
     NODE_PT_phynodes,
 )
 

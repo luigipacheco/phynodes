@@ -1,20 +1,40 @@
 # GPL-3.0-or-later
-# Scene-level PhyNodes settings: the single shared broker connection config.
+# Scene-level PhyNodes settings: the list of configured connections plus the
+# evaluator toggles. Live connector objects are runtime-only (connectors/);
+# only their configuration is stored here.
 
 import bpy
+from bpy.app.handlers import persistent
 from bpy.props import (
     StringProperty, BoolProperty, IntProperty, FloatProperty, PointerProperty,
+    CollectionProperty, EnumProperty,
 )
 from bpy.types import PropertyGroup
 
+from .connectors import type_items
 
-class PhyNodesSettings(PropertyGroup):
-    broker_host: StringProperty(
-        name="Broker Host",
-        description="IP or hostname of the MQTT broker",
+# Static per release — connector types are registered at import time.
+_CONNECTOR_TYPE_ITEMS = type_items()
+
+
+class PhyNodesConnectorConfig(PropertyGroup):
+    """One configured connection (an entry in scene.phynodes.connectors).
+
+    Fields are a flat superset across transports; each connector class draws
+    only the ones it uses (see Connector.draw_config)."""
+
+    name: StringProperty(name="Name", default="Connector")
+    conn_type: EnumProperty(
+        name="Type",
+        items=_CONNECTOR_TYPE_ITEMS,
+        default="MQTT",
+    )
+    host: StringProperty(
+        name="Host",
+        description="IP or hostname to connect to (e.g. the MQTT broker)",
         default="test.mosquitto.org",
     )
-    broker_port: IntProperty(
+    port: IntProperty(
         name="Port",
         default=1883,
         min=1,
@@ -25,9 +45,15 @@ class PhyNodesSettings(PropertyGroup):
         description="Prepended to every node topic (e.g. /phynodes/)",
         default="/phynodes/",
     )
+
+
+class PhyNodesSettings(PropertyGroup):
+    connectors: CollectionProperty(type=PhyNodesConnectorConfig)
+    active_connector_index: IntProperty(default=0)
+
     enabled: BoolProperty(
         name="Graph Enabled",
-        description="Evaluate the PhyNodes graph and exchange MQTT messages",
+        description="Evaluate the PhyNodes graph and exchange messages",
         default=True,
     )
     eval_interval: FloatProperty(
@@ -43,12 +69,55 @@ class PhyNodesSettings(PropertyGroup):
         unit="TIME",
     )
 
+    # Legacy pre-0.2 single-broker fields. Kept only so values saved in old
+    # .blend files load and can be migrated into connectors[0]; not shown in
+    # the UI anymore.
+    broker_host: StringProperty(default="test.mosquitto.org", options={"HIDDEN"})
+    broker_port: IntProperty(default=1883, min=1, max=65535, options={"HIDDEN"})
+    topic_prefix: StringProperty(default="/phynodes/", options={"HIDDEN"})
+
+
+def _ensure_connector_entries():
+    """Give every scene at least one connector entry, seeded from the legacy
+    single-broker fields (which carry old .blend files' values, or defaults)."""
+    for scene in bpy.data.scenes:
+        s = getattr(scene, "phynodes", None)
+        if s is None or len(s.connectors):
+            continue
+        item = s.connectors.add()
+        item.name = "Broker"
+        item.conn_type = "MQTT"
+        item.host = s.broker_host
+        item.port = s.broker_port
+        item.topic_prefix = s.topic_prefix
+
+
+@persistent
+def _on_load(*_args):
+    _ensure_connector_entries()
+
+
+def _migrate_once():
+    # Deferred to a timer: bpy.data is restricted while add-ons register
+    # during Blender startup.
+    _ensure_connector_entries()
+    return None
+
 
 def register():
+    bpy.utils.register_class(PhyNodesConnectorConfig)
     bpy.utils.register_class(PhyNodesSettings)
     bpy.types.Scene.phynodes = PointerProperty(type=PhyNodesSettings)
+    if _on_load not in bpy.app.handlers.load_post:
+        bpy.app.handlers.load_post.append(_on_load)
+    bpy.app.timers.register(_migrate_once, first_interval=0.1)
 
 
 def unregister():
+    if bpy.app.timers.is_registered(_migrate_once):
+        bpy.app.timers.unregister(_migrate_once)
+    if _on_load in bpy.app.handlers.load_post:
+        bpy.app.handlers.load_post.remove(_on_load)
     del bpy.types.Scene.phynodes
     bpy.utils.unregister_class(PhyNodesSettings)
+    bpy.utils.unregister_class(PhyNodesConnectorConfig)

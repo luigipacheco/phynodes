@@ -45,7 +45,7 @@ if (-not $NoCompile) {
 # --- build the zip (manifest at archive root) ---
 $tmp = Join-Path $env:TEMP "phynodes_build"
 if (Test-Path $tmp) { Remove-Item $tmp -Recurse -Force }
-robocopy $root $tmp /E /XD .git __pycache__ .vscode /XF *.pyc *.zip | Out-Null
+robocopy $root $tmp /E /XD .git __pycache__ .vscode .github tests .pytest_cache /XF *.pyc *.zip | Out-Null
 # robocopy uses exit codes 0-7 for success; normalize so the script doesn't look failed.
 if ($LASTEXITCODE -ge 8) { throw "robocopy failed ($LASTEXITCODE)" } else { $global:LASTEXITCODE = 0 }
 $zip = Join-Path $root "$id-$version.zip"
@@ -60,7 +60,7 @@ if ($Sync) {
     $ext = Join-Path $env:APPDATA "Blender Foundation\Blender\$Blender\extensions\user_default\$id"
     if (Test-Path $ext) { Remove-Item $ext -Recurse -Force }
     New-Item -ItemType Directory -Path $ext -Force | Out-Null
-    robocopy $root $ext /E /XD .git __pycache__ .vscode /XF *.pyc *.zip | Out-Null
+    robocopy $root $ext /E /XD .git __pycache__ .vscode .github tests .pytest_cache /XF *.pyc *.zip | Out-Null
     if ($LASTEXITCODE -ge 8) { throw "robocopy failed ($LASTEXITCODE)" } else { $global:LASTEXITCODE = 0 }
     Write-Host "Synced to $ext" -ForegroundColor Green
     Write-Host "Use 'Reload Scripts' in Blender (or restart) to load it."

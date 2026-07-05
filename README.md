@@ -50,8 +50,8 @@ Raspberry Pi, Node-RED, Home Assistant, or a Python script on your bench.
   categorized **Add** menu, wire them like shader nodes.
 - **Live evaluation** — the graph is evaluated on a timer (default 20 Hz,
   adjustable); changes repaint the viewport without you clicking.
-- **Bi-directional MQTT** — one shared broker connection; SUB nodes bring data
-  in, PUB nodes send it out.
+- **Bi-directional MQTT** — named broker connections (add several if you need
+  them) with auto-reconnect; SUB nodes bring data in, PUB nodes send it out.
 - **Blender as I/O** — read/write object properties and **geometry-node
   attributes**; generate driver-ready custom properties.
 - **Typed sockets** — Float / Int / Bool / Vector / Color / String / Any, with
@@ -82,7 +82,8 @@ Raspberry Pi, Node-RED, Home Assistant, or a Python script on your bench.
 
 1. Open a **Node Editor**, switch the tree-type dropdown (header) to
    **PhyNodes**, and create a new node tree.
-2. In the sidebar (**N ▸ PhyNodes**), set **Broker Host** / **Port** /
+2. In the sidebar (**N ▸ PhyNodes ▸ Connections**), select the default MQTT
+   connection (or add one with **＋**), set **Host** / **Port** /
    **Topic Prefix**, then **Connect**.
 3. **Add ▸** pick nodes from the categories and wire them up.
 
@@ -175,12 +176,13 @@ and optional min/max.
 | File | Role |
 |------|------|
 | `tree.py` | The PhyNodes node tree + typed Variant socket |
-| `base.py` | Node base class, pull-based memoized evaluation, value/type utils |
+| `base.py` | Node base class, pull-based memoized evaluation |
+| `values.py` | bpy-free value/payload utilities (unit-tested in `tests/`) |
 | `evaluator.py` | The timer: evaluates sink nodes and requests redraws |
-| `connection.py` | One shared threaded `paho-mqtt` client |
-| `settings.py` | Scene-level broker config + refresh interval |
-| `nodes/` | One module per node |
-| `ui.py` | Categorized Add menu + broker N-panel |
+| `connectors/` | Transport layer: `base.py` (connector interface + threading contract), `mqtt.py` (threaded `paho-mqtt` with auto-reconnect), registry in `__init__.py` |
+| `settings.py` | Scene-level connections list + refresh interval |
+| `nodes/` | One module per node; `io_base.py` is the shared base for transport I/O nodes |
+| `ui.py` | Categorized Add menu + Connections N-panel |
 
 Evaluation is **pull-based**: each node computes its output by pulling upstream
 inputs (cached per tick, cycle-guarded). Sink nodes are the entry points the
@@ -218,16 +220,21 @@ python -m pip download paho-mqtt --only-binary=:all: --no-deps -d wheels
 - **A value doesn't propagate** — it only flows if it's wired to a **sink**
   (Custom Property / Set Property / MQTT PUB / Debug), and the graph is
   **Enabled** in the N-panel.
-- **Can't connect** — check broker host/port; the N-panel shows the error.
+- **Can't connect** — check the connection's host/port; status and errors show
+  in the Connections panel. Once connected, a dropped broker reconnects
+  automatically.
 - **paho-mqtt not installed** — install from the **zip** (so the bundled wheel
   is used), then disable/enable the add-on once.
 
 ## Roadmap
 
-- More transports beyond MQTT (OSC, serial, …) behind a connector layer
+- More transports behind the connector layer (landed in 0.2): **OSC** next,
+  then **Zenoh** (broker-less peer mode + ROS 2 interop), serial, …
 - Geometry-Nodes-style typed sockets, unit subtypes, node groups
 - Digital-twin helpers: record/playback, two-way binding, output safety
-- Optional per-node broker override; writing back into geometry attributes
+- Writing back into geometry attributes
+
+See [plan.md](plan.md) for the full architecture plan and phased roadmap.
 
 ## License & credits
 

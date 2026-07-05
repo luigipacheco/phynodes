@@ -5,20 +5,32 @@ import bpy
 from bpy.props import StringProperty, BoolProperty
 from bpy.types import Node
 
-from ..base import AQBaseNode, format_for_mqtt
-from ..connection import manager
+from ..base import format_for_mqtt
+from .io_base import ConnectorIONode
+
+# Last payload sent per node (keyed by node pointer), to suppress duplicate
+# publishes. Runtime-only on purpose: storing it in node properties would
+# dirty the .blend and push depsgraph updates on every publish (up to the
+# timer rate).
+_last_sent = {}
 
 
-class AQMqttPubNode(AQBaseNode, Node):
+class AQMqttPubNode(ConnectorIONode, Node):
     bl_idname = "PhyNodesMqttPubNode"
     bl_label = "MQTT PUB"
     bl_icon = "EXPORT"
 
     is_sink = True
+    connector_type_id = "MQTT"
 
+    connector_name: StringProperty(
+        name="Connector",
+        description="Named connection to use (empty = first MQTT connection)",
+        default="",
+    )
     topic: StringProperty(
         name="Topic",
-        description="Topic postfix to publish to (appended to the scene topic prefix)",
+        description="Topic postfix to publish to (appended to the connector's topic prefix)",
         default="command",
     )
     only_on_change: BoolProperty(
@@ -26,27 +38,26 @@ class AQMqttPubNode(AQBaseNode, Node):
         description="Publish only when the value differs from the last sent value",
         default=True,
     )
-    # Last published payload, kept to suppress duplicate publishes. The flag
-    # forces a publish the first tick (a StringProperty cannot hold a null
-    # sentinel, and any string could legitimately be a payload).
-    last_payload: StringProperty(default="", options={"HIDDEN"})
-    has_published: BoolProperty(default=False, options={"HIDDEN"})
 
     def init(self, context):
         self.new_input("Value", "ANY")
 
     def draw_buttons(self, context, layout):
+        self.draw_connector_selector(context, layout)
         layout.prop(self, "topic", text="")
         layout.prop(self, "only_on_change")
 
     def evaluate_sink(self):
+        conn = self.get_connector()
+        if conn is None:
+            return
         value = self.get_input("Value", 0.0)
         payload = format_for_mqtt(value)
-        if self.only_on_change and self.has_published and payload == self.last_payload:
+        key = self.as_pointer()
+        if self.only_on_change and _last_sent.get(key) == payload:
             return
-        if manager.publish(self.topic, payload):
-            self.last_payload = payload
-            self.has_published = True
+        if conn.write(self.topic, payload):
+            _last_sent[key] = payload
 
 
 classes = (AQMqttPubNode,)

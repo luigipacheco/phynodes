@@ -4,7 +4,7 @@
 
 schema_version = "1.0.0"
 id = "phynodes"
-version = "0.1.0"
+version = "0.2.0"
 name = "PhyNodes"
 tagline = "Connect Blender to physical inputs and outputs through MQTT"
 type = "add-on"
@@ -20,4 +20,14 @@ website = "https://www.animaquina.com"
 #   python -m pip download paho-mqtt --only-binary=:all: --no-deps -d wheels
 wheels = [
     "./wheels/paho_mqtt-2.1.0-py3-none-any.whl",
+]
+
+# Keep dev-only files out of the extension zip when building with
+# `blender --command extension build` (build.ps1 excludes the same set).
+[build]
+paths_exclude_pattern = [
+    "__pycache__/",
+    ".*",
+    "tests/",
+    "*.zip",
 ]

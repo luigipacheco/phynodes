@@ -50,6 +50,12 @@ and others are coming, so the graph must be **transport-agnostic**.
 nodes, and the settings panel all assume one broker. Adding OSC/serial today
 means copy-pasting that structure. Phase 1 generalizes it.
 
+> **Status: Phase 1 landed in v0.2.0.** `connection.py` became the
+> `connectors/` package (base interface + registry + MQTT implementation with
+> auto-reconnect and per-topic subscriptions), the N-panel is a named
+> connections list, and MQTT SUB/PUB resolve their connector by name (empty =
+> first MQTT connection, which keeps old files working).
+
 ## 4. Core architecture: the Connector layer
 
 Introduce a small abstraction so every transport plugs in the same way.
@@ -72,14 +78,18 @@ Introduce a small abstraction so every transport plugs in the same way.
 
 ```python
 class Connector:
-    type_id = "base"               # "mqtt" | "osc" | "serial" | ...
-    label   = "Base"
+    type_id = "MQTT"               # "MQTT" | "OSC" | "ZENOH" | "SERIAL" | ...
+    label   = "MQTT"
 
-    def start(self): ...           # open the connection (on a worker thread)
+    def start(self, config): ...   # open the connection (on a worker thread)
     def stop(self): ...
     @property
     def status(self): ...          # DISCONNECTED | CONNECTING | CONNECTED | ERROR
 
+    def ensure_subscribed(self, address):     # declare inbound interest
+        ...                        # MQTT: per-topic subscribe · Zenoh: declare a
+                                   # subscriber · OSC/serial: no-op (the port
+                                   # receives everything)
     def read(self, address):       # latest inbound value for an address, or None
         ...
     def write(self, address, value, **opts):  # outbound; opts are protocol-specific
@@ -88,10 +98,20 @@ class Connector:
 
 - **Inbound** values are cached per address (written from the connector's
   thread, read on the main thread — the pattern already used for MQTT).
-- **Address** is the protocol's routing key: MQTT topic, OSC path, serial
-  line-key, etc.
-- Each connector type ships a small **config PropertyGroup** (broker/port,
-  host/port, COM/baud…) and draws its own settings.
+- **`ensure_subscribed`** is part of the contract because transports differ:
+  MQTT and Zenoh need explicit per-address subscriptions, OSC/serial receive
+  everything on the port. SUB-type nodes call it every evaluation; it must be
+  idempotent and cheap. (It also keeps the inbox bounded — no more
+  subscribe-to-`#`.)
+- **Address** is the protocol's routing key: MQTT topic, OSC path, Zenoh key
+  expression, serial line-key, etc.
+- **Restart safety:** worker threads carry a *generation token* captured at
+  start; `stop()` bumps it and workers bail out without touching shared state,
+  so a thread stuck in a slow connect can't clobber a newer connection.
+- Config lives in `scene.phynodes.connectors` (a flat superset of fields);
+  each connector class draws only its own fields (`draw_config`) and extracts
+  a plain dict for its worker (`config_from_item` — bpy properties never cross
+  the thread boundary).
 
 ### Scene data model
 
@@ -100,17 +120,17 @@ class Connector:
   pick MQTT/OSC/Serial, configure, connect."
 - Live connector objects live in a module-level registry keyed by name.
 
-### Node model — decision to review (see §9)
+### Node model — decided: Option B
 
 - **Option A — Generic Channel I/O:** `Channel In` / `Channel Out` nodes with a
-  *connector* dropdown + *address* field; the node draws protocol-specific
-  options based on the chosen connector. Scales to any transport with two nodes.
-- **Option B — Per-protocol nodes:** `MQTT SUB/PUB`, `OSC In/Out`, `Serial
-  In/Out` … all sharing a `ConnectorIO` base. More discoverable in the Add menu,
-  more nodes to maintain.
-- **Recommendation:** B for discoverability, all sharing one base, with the
-  connector *instance* configured in the N-panel list (so a node just picks
-  "which OSC endpoint" + address).
+  *connector* dropdown + *address* field. Scales to any transport with two
+  nodes, but hides the transport in the Add menu.
+- **Option B — Per-protocol nodes (chosen):** `MQTT SUB/PUB`, `OSC In/Out`,
+  `Zenoh Sub/Pub` … all sharing the `ConnectorIONode` base
+  (`nodes/io_base.py`). Discoverable in the Add menu; the connector *instance*
+  is configured in the N-panel list, so a node just picks "which connection" +
+  address. An empty connector name means "first live connection of my type",
+  which keeps one-connection setups zero-config.
 
 ## 5. Connector catalogue
 
@@ -118,7 +138,8 @@ class Connector:
 |-----------|-----------|------|----------------|----------|
 | **MQTT** | paho-mqtt | ⇄ | IoT, ESP32, Node-RED, Home Assistant | ✅ done |
 | **OSC** | python-osc | ⇄ | TouchOSC, Max/MSP, Pd, VJ/interactive, mocap | ★ next |
-| **Serial** | pyserial | ⇄ | Arduino/microcontrollers direct, no broker | ★ next |
+| **Zenoh** | eclipse-zenoh | ⇄ | Broker-less peer mode, ROS 2 interop (rmw_zenoh / zenoh-bridge-ros2dds), robot fleets | ★ after OSC |
+| **Serial** | pyserial | ⇄ | Arduino/microcontrollers direct, no broker | ◐ |
 | **WebSocket** | websockets | ⇄ | Browsers, web dashboards, p5.js | ◐ |
 | **Art-Net / sACN / DMX** | (lib) | → | Stage lighting, LED fixtures | ◐ |
 | **MIDI** | mido / rtmidi | ⇄ | Controllers, music-reactive, faders | ◐ |
@@ -128,17 +149,44 @@ class Connector:
 
 (✅ done · ★ next · ◐ later · ○ exploratory)
 
+**Why OSC before Zenoh:** python-osc is pure Python (one universal wheel, zero
+packaging risk) and stresses the abstraction differently — it's *asymmetric*
+(a UDP listen port for inbound, a host:port client for outbound) and already
+typed (type tags), so it proves the seam cheaply. Zenoh's cost is mostly the
+Rust-backed per-platform wheels and the release-pipeline change they require.
+
+**Why Zenoh at all:** it's the strategic transport for Animaquina — no broker
+to run in peer mode (one less moving part in installations), key expressions
+(`robot/arm/**`) that map one-to-one onto the topic model, and a straight path
+to ROS 2 robots via `rmw_zenoh` / `zenoh-bridge-ros2dds`. API stable since
+1.x (late 2024); EPL-2.0/Apache-2.0, GPL-compatible. Pub/sub first;
+queryables/liveliness (e.g. a "device online" node) are later extras.
+
 ## 6. Phased roadmap
 
-- **Phase 1 — Connector refactor.** Extract `Connector` base + registry; make
-  MQTT the first implementation behind it; connectors list in the N-panel;
-  generalize SUB/PUB onto a `ConnectorIO` base. *No new features, just the seam.*
+- **Phase 1 — Connector refactor. ✅ done (v0.2.0).** `Connector` base +
+  registry (`connectors/`); MQTT behind it with auto-reconnect (exponential
+  backoff), per-topic subscriptions, and generation-guarded worker threads;
+  named connections list in the N-panel with legacy-settings migration;
+  SUB/PUB on the `ConnectorIONode` base; bpy-free helpers split into
+  `values.py` with unit tests + CI.
 - **Phase 2 — OSC.** First proof the abstraction holds with a second transport.
-  OSC In/Out nodes, address patterns, bundle/type-tag handling.
-- **Phase 3 — Serial.** Line/JSON framing, COM port + baud, hot-plug handling.
-- **Phase 4 — Breadth.** WebSocket, Art-Net/DMX, MIDI as the abstraction proves
+  Bundle python-osc; config = listen port (0 = receive off) + send host:port;
+  `ThreadingOSCUDPServer` feeding the inbox (1 arg → scalar, n args → array);
+  `SimpleUDPClient` for send. OSC In/Out nodes. Exact address match first;
+  OSC pattern matching and bundles/timetags as follow-ups. Verify against
+  TouchOSC / Protokol.
+- **Phase 3 — Zenoh.** Packaging first: per-platform eclipse-zenoh wheels,
+  `--split-platforms` release builds, lazy import (a platform without a wheel
+  just shows "Zenoh unavailable"). Config = mode (peer/client) + optional
+  router endpoints; `ensure_subscribed` declares a subscriber per key
+  expression; `write` = `session.put`. Reuse `parse_payload` so MQTT and Zenoh
+  graphs behave identically. Zenoh Sub/Pub nodes. Later: liveliness ("device
+  online" node), queryables, documented ROS 2 recipe via zenoh-bridge-ros2dds.
+- **Phase 4 — Serial.** Line/JSON framing, COM port + baud, hot-plug handling.
+- **Phase 5 — Breadth.** WebSocket, Art-Net/DMX, MIDI as the abstraction proves
   out; community-addable connectors.
-- **Phase 5 — Digital twin.** Two-way binding presets, record & playback of
+- **Phase 6 — Digital twin.** Two-way binding presets, record & playback of
   channel streams, "Blender drives / hardware drives" arbitration, lag/health
   monitoring, calibration nodes.
 
@@ -171,15 +219,31 @@ From the GN review — fold these in across phases:
   load a connector's lib when that connector is used (lazy import).
 - Keep connectors **optional**: a missing lib disables just that transport, with
   a clear note (the MQTT panel already does this for paho).
+- **Pure-Python vs binary wheels:** paho-mqtt and python-osc ship one universal
+  wheel each. eclipse-zenoh is Rust-backed — per-platform wheels (~5–10 MB
+  each, win/mac/linux × x64/arm64), listed together in the manifest and split
+  into per-platform zips with `blender --command extension build
+  --split-platforms`. That release-pipeline change is the bulk of Phase 3.
 
-## 10. Open questions to review together
+## 10. Decisions & open questions
 
-1. **Node model:** generic `Channel In/Out` (Option A) vs per-protocol nodes
-   sharing a base (Option B)? (I lean B.)
-2. **Connector scope:** one global connector per type, or multiple named
-   instances (e.g. two brokers, three serial ports)? (I lean multiple/named.)
-3. **Serial framing:** what's the default wire format — newline `key value`,
-   JSON-lines, CSV, or Firmata? (Probably JSON-lines + raw line modes.)
-4. **Next transport after the refactor:** OSC or Serial first?
-5. **Scope of Phase 1:** refactor only (safe), or refactor + ship OSC together?
-6. How much of the **GN socket-model** work to pull forward vs defer.
+Decided (v0.2.0):
+
+1. **Node model:** Option B — per-protocol nodes sharing the `ConnectorIONode`
+   base, with the connector instance picked from the N-panel list (empty =
+   first of type).
+2. **Connector scope:** multiple **named** instances
+   (`scene.phynodes.connectors` collection) — two brokers, an MQTT + an OSC
+   endpoint, etc.
+3. **Next transports:** OSC (Phase 2), then Zenoh (Phase 3) — see §5 for the
+   rationale. Serial moves to Phase 4.
+4. **Scope of Phase 1:** refactor only; OSC ships separately.
+
+Still open:
+
+5. **Serial framing:** newline `key value`, JSON-lines, CSV, or Firmata?
+   (Probably JSON-lines + raw line modes.)
+6. How much of the **GN socket-model** work (§7) to pull forward vs defer.
+7. **Renaming a connected connector** orphans its live instance until the next
+   connect/disconnect sweep (`registry.prune`). Good enough, or key live
+   instances by a stable UID instead of the name?

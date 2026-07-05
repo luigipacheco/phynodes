@@ -11,7 +11,7 @@ bl_info = {
     "author": "Luis Arturo Pacheco",
     "description": "Connect Blender to physical inputs and outputs through MQTT, using a node graph.",
     "blender": (4, 2, 0),
-    "version": (0, 1, 0),
+    "version": (0, 2, 0),
     "location": "Node Editor > PhyNodes",
     "warning": "Beta — requires paho-mqtt in Blender's Python.",
     "doc_url": "https://www.animaquina.com",
@@ -20,7 +20,7 @@ bl_info = {
 
 import bpy
 
-from . import settings, tree, base, evaluator, ui
+from . import settings, tree, base, evaluator, ui, connectors
 from . import nodes as aq_nodes
 
 
@@ -38,6 +38,7 @@ def unregister():
     aq_nodes.unregister()
     tree.unregister()
     settings.unregister()
+    connectors.stop_all()
 
 
 if __name__ == "__main__":
