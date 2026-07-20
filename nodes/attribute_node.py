@@ -8,7 +8,7 @@ import bpy
 from bpy.props import PointerProperty, EnumProperty, BoolProperty, IntProperty
 from bpy.types import Node
 
-from ..base import AQBaseNode
+from ..base import AQBaseNode, to_float_safe
 
 # Keep a reference to the items list returned to EnumProperty (Blender will
 # crash if the strings are garbage-collected while the enum is live).
@@ -56,21 +56,35 @@ class AQAttributeNode(AQBaseNode, Node):
 
     object: PointerProperty(name="Object", type=bpy.types.Object)
     attribute: EnumProperty(name="Attribute", items=_attr_items)
+
+    def _update_all_instances(self, context):
+        sock = self.inputs.get("Index")
+        if sock is not None:
+            sock.enabled = not self.all_instances
+
     all_instances: BoolProperty(
         name="All Elements",
         description="Output the whole attribute as an array (else a single index)",
         default=True,
+        update=_update_all_instances,
     )
+    # Legacy fallback for nodes saved before the Index socket existed.
     index: IntProperty(name="Index", default=0, min=0)
 
     def init(self, context):
+        # Index is a live input so it can be driven by the graph — e.g. wire an
+        # Animaquina run_idx (Property In) here to look up per-point toolpath
+        # attributes at the waypoint the robot / sim playback is currently at.
+        sock = self.new_input("Index", "INT", default=0)
+        sock.enabled = not self.all_instances
         self.new_output("Value", "ANY")
 
     def draw_buttons(self, context, layout):
         layout.prop(self, "object", text="")
         layout.prop(self, "attribute", text="")
         layout.prop(self, "all_instances")
-        if not self.all_instances:
+        if not self.all_instances and self.inputs.get("Index") is None:
+            # Node from an old file (no socket): keep the property editable.
             layout.prop(self, "index")
 
     # -- reading ---------------------------------------------------------
@@ -102,8 +116,16 @@ class AQAttributeNode(AQBaseNode, Node):
         n = len(attr.data)
         if self.all_instances:
             return [self._element(attr.data[i], mode) for i in range(n)]
-        idx = max(0, min(self.index, n - 1))
+        # Clamp into range: an idle Animaquina run publishes run_idx = -1,
+        # which resolves to the first point rather than an error.
+        idx = max(0, min(self._current_index(), n - 1))
         return self._element(attr.data[idx], mode)
+
+    def _current_index(self):
+        sock = self.inputs.get("Index")
+        if sock is None:
+            return int(self.index)  # legacy node without the socket
+        return int(to_float_safe(self.get_input("Index", 0)))
 
     def compute_output(self, socket):
         return self._read()
