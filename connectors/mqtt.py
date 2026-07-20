@@ -32,6 +32,8 @@ class MQTTConnector(Connector):
         self._host = ""
         self._port = self.DEFAULT_PORT
         self._prefix = ""
+        self._username = ""
+        self._password = ""
         # Full topics nodes declared interest in; (re)subscribed on every
         # (re)connect. Guarded: added on the main thread, iterated on the
         # worker thread in _on_connect.
@@ -49,6 +51,8 @@ class MQTTConnector(Connector):
             "host": item.host,
             "port": item.port,
             "prefix": item.topic_prefix,
+            "username": item.username,
+            "password": item.password,
         }
 
     @classmethod
@@ -56,6 +60,8 @@ class MQTTConnector(Connector):
         item.host = "test.mosquitto.org"
         item.port = 1883
         item.topic_prefix = "/phynodes/"
+        item.username = ""
+        item.password = ""
 
     @classmethod
     def draw_config(cls, layout, item):
@@ -63,6 +69,8 @@ class MQTTConnector(Connector):
         col.prop(item, "host")
         col.prop(item, "port")
         col.prop(item, "topic_prefix")
+        col.prop(item, "username")
+        col.prop(item, "password")
 
     @staticmethod
     def _normalize_prefix(prefix):
@@ -100,6 +108,8 @@ class MQTTConnector(Connector):
         self._host = config["host"]
         self._port = int(config.get("port", self.DEFAULT_PORT))
         self._prefix = self._normalize_prefix(config.get("prefix", ""))
+        self._username = config.get("username", "") or ""
+        self._password = config.get("password", "") or ""
         self.last_error = ""
         gen = self._next_generation()
         self._thread = threading.Thread(
@@ -135,6 +145,8 @@ class MQTTConnector(Connector):
             try:
                 client = self._make_client()
                 client.user_data_set(self)
+                if self._username:
+                    client.username_pw_set(self._username, self._password or None)
                 client.on_connect = MQTTConnector._on_connect
                 client.on_message = MQTTConnector._on_message
                 client.connect(self._host, self._port, 60)

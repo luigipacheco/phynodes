@@ -54,6 +54,17 @@ class PhyNodesConnectorConfig(PropertyGroup):
         description="Prepended to every node topic (e.g. /phynodes/)",
         default="/phynodes/",
     )
+    username: StringProperty(
+        name="Username",
+        description="MQTT username (leave empty for an anonymous broker)",
+        default="",
+    )
+    password: StringProperty(
+        name="Password",
+        description="MQTT password (stored in the .blend in plain text)",
+        default="",
+        subtype="PASSWORD",
+    )
     listen_port: IntProperty(
         name="Listen Port",
         description="UDP port to receive OSC on (0 = receive off)",
