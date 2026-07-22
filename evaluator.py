@@ -6,6 +6,7 @@ import bpy
 from bpy.app.handlers import persistent
 
 from . import base
+from . import fabnode
 from .tree import TREE_ID
 
 EVAL_INTERVAL = 0.05  # 50ms, matching mqttouch
@@ -30,6 +31,13 @@ def _tick():
     scene = bpy.context.scene
     settings = getattr(scene, "phynodes", None)
     interval = settings.eval_interval if settings is not None else EVAL_INTERVAL
+
+    # FabNode presence (manifest + heartbeat) is independent of graph
+    # evaluation — a paused graph should still show as an online node.
+    try:
+        fabnode.tick()
+    except Exception as exc:
+        print("[phynodes] fabnode tick error:", exc)
 
     if settings is not None and not settings.enabled:
         return interval

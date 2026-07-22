@@ -72,6 +72,30 @@ class PhyNodesConnectorConfig(PropertyGroup):
         min=0,
         max=65535,
     )
+    # FabNodes identity (MQTT only). When on, this connection announces itself
+    # under fabnodes/1.1 so FabFlow discovers Blender like any ESP32: it
+    # publishes a retained manifest derived from the MQTT PUB/SUB nodes that
+    # use it, an online/offline $state (LWT), a diag/uptime heartbeat, and
+    # honours the system/estop safety latch.
+    fabnode_enabled: BoolProperty(
+        name="Announce as FabNode",
+        description="Publish a fabnodes/1.1 manifest so FabFlow discovers this "
+                    "connection as a node; signals are derived from the MQTT "
+                    "PUB/SUB nodes that use this connection",
+        default=False,
+    )
+    fabnode_name: StringProperty(
+        name="Node Name",
+        description="FabNode identity (e.g. blender1). The manifest, $state and "
+                    "diag topics live under this name",
+        default="blender1",
+    )
+    fabnode_type: StringProperty(
+        name="Node Type",
+        description="FabNode type advertised in the manifest (FabFlow can style "
+                    "it distinctly)",
+        default="fab-blender",
+    )
 
 
 class PhyNodesSettings(PropertyGroup):

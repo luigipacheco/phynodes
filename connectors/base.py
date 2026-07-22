@@ -29,6 +29,14 @@ class Connector:
     label = "Base"     # human-readable transport name
     requires = ""      # pip name of the backing library, for UI error messages
 
+    # FabNodes identity — only MQTT participates (the FabNodes protocol is
+    # MQTT). Declared here as defaults so the manifest driver (fabnode.py) can
+    # query any live connector uniformly without isinstance checks.
+    fab_enabled = False
+    fab_name = ""
+    fab_type = ""
+    estop_active = False
+
     def __init__(self, name=""):
         self.name = name          # matches the scene config entry's name
         self.last_error = ""

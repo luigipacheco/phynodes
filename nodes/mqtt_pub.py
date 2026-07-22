@@ -51,6 +51,10 @@ class AQMqttPubNode(ConnectorIONode, Node):
         conn = self.get_connector()
         if conn is None:
             return
+        # FabNodes safety rule: while system/estop is latched, control nodes
+        # fail safe and suppress outbound values.
+        if getattr(conn, "estop_active", False):
+            return
         value = self.get_input("Value", 0.0)
         payload = format_for_mqtt(value)
         key = self.as_pointer()

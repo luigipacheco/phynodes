@@ -4,7 +4,7 @@
 
 schema_version = "1.0.0"
 id = "phynodes"
-version = "0.3.0"
+version = "0.4.0"
 name = "PhyNodes"
 tagline = "Connect Blender to physical inputs and outputs through MQTT and OSC"
 type = "add-on"

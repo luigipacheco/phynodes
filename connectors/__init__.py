@@ -26,6 +26,12 @@ def get(name):
     return _live.get(name)
 
 
+def all_live():
+    """Every live connector instance (for cross-cutting drivers like the
+    FabNodes manifest tick)."""
+    return list(_live.values())
+
+
 def resolve(name, type_id):
     """The connector a node should use: the named one, or — with an empty
     name — the first live connector of the node's transport type."""

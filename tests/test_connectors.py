@@ -128,6 +128,71 @@ def test_mqtt_start_without_paho_reports_error():
     assert "paho" in conn.last_error
 
 
+# -- FabNodes identity (transport-level, bpy-free) ---------------------------
+
+class _FakeConfigItem:
+    """Stand-in for a scene connector entry (config_from_item uses getattr)."""
+    host = "broker.local"
+    port = 1883
+    topic_prefix = "/phynodes/"
+    username = ""
+    password = ""
+    fabnode_enabled = True
+    fabnode_name = "blender1"
+    fabnode_type = "fab-blender"
+
+
+def test_mqtt_config_extracts_fabnode_fields():
+    cfg = connectors.MQTTConnector.config_from_item(_FakeConfigItem())
+    assert cfg["fab_enabled"] is True
+    assert cfg["fab_name"] == "blender1"
+    assert cfg["fab_type"] == "fab-blender"
+
+
+def test_mqtt_config_fabnode_type_default_when_blank():
+    item = _FakeConfigItem()
+    item.fabnode_type = "   "
+    cfg = connectors.MQTTConnector.config_from_item(item)
+    assert cfg["fab_type"] == "fab-blender"
+
+
+def test_mqtt_fabnode_defaults_off():
+    conn = connectors.MQTTConnector("m")
+    assert conn.fab_enabled is False
+    assert conn.estop_active is False
+
+
+def test_mqtt_estop_latch_and_clear():
+    conn = connectors.MQTTConnector("m")
+    conn.fab_name = "blender1"
+    # no client attached: _handle_estop must still latch without raising
+    for truthy in ("1", "true", "on", "0.9"):
+        conn.estop_active = False
+        conn._handle_estop(truthy)
+        assert conn.estop_active is True, truthy
+    for falsy in ("0", "false", "off", "", "0.1"):
+        conn.estop_active = True
+        conn._handle_estop(falsy)
+        assert conn.estop_active is False, falsy
+
+
+def test_mqtt_fabnode_publishes_need_connection():
+    # Guards: no live client → manifest/heartbeat/clear are safe no-ops.
+    conn = connectors.MQTTConnector("m")
+    conn.fab_name = "blender1"
+    assert conn.publish_manifest("{}") is False
+    conn.publish_heartbeat()        # must not raise
+    conn.clear_retained_fabnode()   # must not raise
+
+
+def test_base_connector_answers_fabnode_query():
+    # fabnode.tick() asks every live connector uniformly; non-MQTT ones must
+    # answer the identity attributes without special-casing.
+    conn = connectors.OSCConnector("o")
+    assert getattr(conn, "fab_enabled", None) is False
+    assert getattr(conn, "estop_active", None) is False
+
+
 # -- OSC ----------------------------------------------------------------------
 
 def test_osc_address_normalization():

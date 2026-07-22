@@ -39,6 +39,16 @@ class MQTTConnector(Connector):
         # worker thread in _on_connect.
         self._subs = set()
         self._subs_lock = threading.Lock()
+        # FabNodes identity (fabnode.py drives the manifest/heartbeat pacing;
+        # this class owns the transport-level protocol: LWT, $state, estop).
+        self.fab_enabled = False
+        self.fab_name = ""
+        self.fab_type = "fab-blender"
+        self.estop_active = False
+        self._fab_started_at = 0.0
+        self._fab_last_manifest_hash = None
+        self._fab_last_manifest_at = 0.0
+        self._fab_last_heartbeat = 0.0
 
     # -- availability / config --------------------------------------------
     @classmethod
@@ -53,6 +63,9 @@ class MQTTConnector(Connector):
             "prefix": item.topic_prefix,
             "username": item.username,
             "password": item.password,
+            "fab_enabled": bool(getattr(item, "fabnode_enabled", False)),
+            "fab_name": (getattr(item, "fabnode_name", "") or "").strip(),
+            "fab_type": (getattr(item, "fabnode_type", "") or "").strip() or "fab-blender",
         }
 
     @classmethod
@@ -71,6 +84,13 @@ class MQTTConnector(Connector):
         col.prop(item, "topic_prefix")
         col.prop(item, "username")
         col.prop(item, "password")
+
+        layout.separator()
+        box = layout.box()
+        box.prop(item, "fabnode_enabled")
+        if item.fabnode_enabled:
+            box.prop(item, "fabnode_name")
+            box.prop(item, "fabnode_type")
 
     @staticmethod
     def _normalize_prefix(prefix):
@@ -110,6 +130,15 @@ class MQTTConnector(Connector):
         self._prefix = self._normalize_prefix(config.get("prefix", ""))
         self._username = config.get("username", "") or ""
         self._password = config.get("password", "") or ""
+        self.fab_name = (config.get("fab_name", "") or "").strip()
+        self.fab_type = (config.get("fab_type", "") or "fab-blender").strip() or "fab-blender"
+        # A FabNode with no name has no topic namespace — treat as disabled.
+        self.fab_enabled = bool(config.get("fab_enabled", False)) and bool(self.fab_name)
+        self.estop_active = False
+        self._fab_started_at = time.time()
+        self._fab_last_manifest_hash = None
+        self._fab_last_manifest_at = 0.0
+        self._fab_last_heartbeat = 0.0
         self.last_error = ""
         gen = self._next_generation()
         self._thread = threading.Thread(
@@ -120,6 +149,16 @@ class MQTTConnector(Connector):
         return True
 
     def stop(self):
+        # Graceful offline: the LWT only fires on an *ungraceful* drop, so on a
+        # deliberate disconnect publish offline ourselves (retained, so FabFlow
+        # keeps the node listed but greyed).
+        if self.fab_enabled and self.fab_name and self.connected:
+            client = self._client
+            if client is not None:
+                try:
+                    client.publish(self.fab_name + "/$state", "offline", qos=1, retain=True)
+                except Exception:
+                    pass
         self._next_generation()  # workers see the change and bail out
         thread = self._thread
         if thread is not None:
@@ -149,6 +188,13 @@ class MQTTConnector(Connector):
                     client.username_pw_set(self._username, self._password or None)
                 client.on_connect = MQTTConnector._on_connect
                 client.on_message = MQTTConnector._on_message
+                if self.fab_enabled and self.fab_name:
+                    # Last Will: broker publishes this if we drop ungracefully.
+                    try:
+                        client.will_set(self.fab_name + "/$state", "offline",
+                                        qos=1, retain=True)
+                    except Exception:
+                        pass
                 client.connect(self._host, self._port, 60)
                 if not self._current(gen):  # stopped while connecting
                     try:
@@ -192,6 +238,20 @@ class MQTTConnector(Connector):
                 client.subscribe(topic)
             except Exception:
                 pass
+        if conn.fab_enabled and conn.fab_name:
+            # Announce liveness + join the safety bus. The manifest itself is
+            # published from the main thread (fabnode.tick) because it must
+            # walk the node graph; force a republish by clearing the hash.
+            try:
+                client.publish(conn.fab_name + "/$state", "online", qos=1, retain=True)
+                client.subscribe("system/estop", qos=1)
+                client.publish(conn.fab_name + "/status/safe",
+                               "1" if conn.estop_active else "0", retain=True)
+            except Exception:
+                pass
+            conn._fab_last_manifest_hash = None
+            conn._fab_last_manifest_at = 0.0
+            conn._fab_last_heartbeat = 0.0
         print("[phynodes] mqtt '%s': connected to %s (%d topics)"
               % (conn.name, conn._host, len(topics)))
 
@@ -199,9 +259,38 @@ class MQTTConnector(Connector):
     def _on_message(client, userdata, msg):
         conn = userdata
         try:
-            conn._inbox[str(msg.topic)] = msg.payload.decode("utf-8", "replace")
+            topic = str(msg.topic)
+            payload = msg.payload.decode("utf-8", "replace")
+            conn._inbox[topic] = payload
+            if topic == "system/estop":
+                conn._handle_estop(payload)
         except Exception:
             pass
+
+    def _handle_estop(self, payload):
+        """Latch/clear the FabNodes e-stop and acknowledge via status/safe.
+
+        While latched, fabnode PUB nodes suppress control output (fail-safe),
+        mirroring the firmware rule."""
+        text = (payload or "").strip().lower()
+        active = text in ("1", "true", "on")
+        if not active and text not in ("", "0", "false", "off"):
+            try:
+                active = float(text) >= 0.5
+            except ValueError:
+                active = False
+        if active == self.estop_active:
+            return
+        self.estop_active = active
+        print("[phynodes] mqtt '%s': ESTOP %s"
+              % (self.name, "LATCHED" if active else "cleared"))
+        client = self._client
+        if client is not None and self.fab_name:
+            try:
+                client.publish(self.fab_name + "/status/safe",
+                               "1" if active else "0", retain=True)
+            except Exception:
+                pass
 
     # -- node-facing I/O ----------------------------------------------------
     def ensure_subscribed(self, address):
@@ -232,3 +321,49 @@ class MQTTConnector(Connector):
         except Exception as exc:
             print("[phynodes] mqtt '%s' publish error: %s" % (self.name, exc))
             return False
+
+    def full_topic(self, address):
+        """The actual topic a node publishes/subscribes to (prefix applied).
+        Used by the manifest builder so advertised signal topics are truthful."""
+        return self._prefix + address
+
+    # -- FabNodes: absolute-topic publishes (not under the phynodes prefix) ---
+    # These carry the protocol topics (fabnodes/manifest/<n>, <n>/$info,
+    # <n>/diag/*). paho publish is thread-safe, but these are driven from the
+    # main thread by fabnode.tick().
+    def publish_manifest(self, payload):
+        client = self._client
+        if client is None or not self.connected or not self.fab_name:
+            return False
+        try:
+            client.publish("fabnodes/manifest/" + self.fab_name, payload, retain=True)
+            client.publish(self.fab_name + "/$info", payload, retain=True)
+            return True
+        except Exception as exc:
+            print("[phynodes] mqtt '%s' manifest error: %s" % (self.name, exc))
+            return False
+
+    def publish_heartbeat(self):
+        client = self._client
+        if client is None or not self.connected or not self.fab_name:
+            return
+        uptime = int(max(0.0, time.time() - self._fab_started_at))
+        try:
+            client.publish(self.fab_name + "/diag/uptime", str(uptime))
+        except Exception:
+            pass
+
+    def clear_retained_fabnode(self):
+        """Erase this node's retained manifest/$state/$info so a removed
+        connection doesn't linger as a ghost node in FabFlow (empty retained
+        payload deletes the retained message)."""
+        client = self._client
+        if client is None or not self.connected or not self.fab_name:
+            return
+        for topic in ("fabnodes/manifest/" + self.fab_name,
+                      self.fab_name + "/$info",
+                      self.fab_name + "/$state"):
+            try:
+                client.publish(topic, "", retain=True)
+            except Exception:
+                pass

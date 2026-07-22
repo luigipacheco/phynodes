@@ -145,6 +145,14 @@ class PHYNODES_OT_connector_remove(Operator):
         item = _active_item(s)
         if item is None:
             return {"CANCELLED"}
+        # Erase a retained FabNode manifest first, so removing the connection
+        # doesn't leave a ghost node in FabFlow.
+        conn = connectors.get(item.name)
+        if conn is not None and getattr(conn, "fab_enabled", False):
+            try:
+                conn.clear_retained_fabnode()
+            except Exception:
+                pass
         connectors.stop(item.name)
         s.connectors.remove(s.active_connector_index)
         s.active_connector_index = min(
@@ -295,6 +303,14 @@ class NODE_PT_phynodes(Panel):
                 row.operator(PHYNODES_OT_connector_connect.bl_idname, icon="PLAY")
             if conn is not None and conn.last_error:
                 box.label(text=conn.last_error[:48], icon="ERROR")
+
+            # FabNode identity + safety status (once announcing).
+            if item.fabnode_enabled and item.conn_type == "MQTT":
+                fab = box.row(align=True)
+                fab.label(text="FabNode: %s" % (item.fabnode_name or "?"),
+                          icon="NETWORK_DRIVE")
+                if conn is not None and getattr(conn, "estop_active", False):
+                    box.label(text="E-STOP LATCHED", icon="CANCEL")
 
         layout.prop(s, "enabled")
         layout.prop(s, "eval_interval")
