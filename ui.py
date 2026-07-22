@@ -14,7 +14,7 @@ from .nodes import (
     value, input_nodes, color_node, time_node, prop_in, attribute_node,
     mqtt_sub, math_node, map_node, clamp_node, easing_node, compare_node,
     float_curve, switch_node, array_node, array_reduce, string_node, json_node,
-    prop_out, custom_prop, mqtt_pub, osc_in, osc_out, debug_out,
+    prop_out, custom_prop, mqtt_pub, osc_in, osc_out, debug_out, aq_index,
 )
 
 # Blender's own helper for adding node-type entries to a menu, when available.
@@ -44,6 +44,7 @@ CATEGORIES = [
         time_node.AQSceneTimeNode,
         time_node.AQTimerNode,
         prop_in.AQPropInNode,
+        aq_index.AQAnimaquinaIndexNode,
         attribute_node.AQAttributeNode,
     ]),
     ("Math", [

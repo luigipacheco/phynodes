@@ -9,7 +9,7 @@ from . import (
     easing_node, float_curve, compare_node, switch_node, array_node,
     array_reduce, string_node, color_node, json_node,
     mqtt_sub, mqtt_pub, osc_in, osc_out, prop_in, attribute_node, prop_out,
-    custom_prop, debug_out,
+    custom_prop, debug_out, aq_index,
 )
 
 # Ordered for the Add menu, grouped by role.
@@ -24,6 +24,7 @@ NODE_CLASSES = (
     time_node.AQSceneTimeNode,
     time_node.AQTimerNode,
     prop_in.AQPropInNode,
+    aq_index.AQAnimaquinaIndexNode,
     attribute_node.AQAttributeNode,
     mqtt_sub.AQMqttSubNode,
     osc_in.AQOscInNode,
