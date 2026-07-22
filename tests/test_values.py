@@ -54,7 +54,14 @@ def test_parse_plain_string():
 # -- format_for_mqtt --------------------------------------------------------
 
 def test_format_array_is_json():
-    assert values.format_for_mqtt([1, 2]) == "[1, 2]"
+    assert values.format_for_mqtt([1, 2]) == "[1,2]"
+
+
+def test_format_drops_trailing_zero_decimals():
+    # Firmware array parsers read digits only — "[179.0,0.0,0.0]" is rejected.
+    assert values.format_for_mqtt([179.0, 0.0, 0.0]) == "[179,0,0]"
+    assert values.format_for_mqtt([[179.0, 0.0, 0.0]]) == "[[179,0,0]]"
+    assert values.format_for_mqtt(100.0) == "100"
 
 
 def test_format_bool_is_numeric():

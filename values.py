@@ -101,10 +101,29 @@ def _num(token):
         return token
 
 
-def format_for_mqtt(value):
-    """Format a value as a text payload string (arrays -> JSON)."""
+def _compact_numbers(value):
+    """Integral floats -> ints, recursively ([179.0, 0.0] -> [179, 0])."""
     if is_array(value):
-        return json.dumps(list(value))
+        return [_compact_numbers(v) for v in value]
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, float) and value.is_integer():
+        return int(value)
+    return value
+
+
+def format_for_mqtt(value):
+    """Format a value as a text payload string (arrays -> JSON).
+
+    Integral floats print without the decimal point, matching JS
+    JSON.stringify / String() in values.js. Firmware array parsers read digits
+    only (fab-hello's `sscanf("[%d,%d,%d]")`, fab-led's byte parser), so a
+    stray "179.0" makes the whole payload unparseable and the node ignores it.
+    """
+    if is_array(value):
+        return json.dumps(_compact_numbers(value), separators=(",", ":"))
     if isinstance(value, bool):
         return "1" if value else "0"
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
     return str(value)

@@ -2,6 +2,8 @@
 # Timer-driven graph evaluation. Every ~50ms we evaluate each sink node in every
 # PhyNodes tree, which pulls the rest of the graph lazily.
 
+import time
+
 import bpy
 from bpy.app.handlers import persistent
 
@@ -11,10 +13,25 @@ from .tree import TREE_ID
 
 EVAL_INTERVAL = 0.05  # 50ms, matching mqttouch
 
+# Evaluation is cheap; *repainting* is not. A continuously changing value (a
+# streaming toolpath index, a sensor) marks the graph dirty on every tick, and
+# an unthrottled redraw then repaints every 3D viewport at the full eval rate —
+# on a heavy scene that is the dominant cost of running PhyNodes, and it scales
+# with the viewport, not with the graph. Cap repaints well below the eval rate:
+# data still updates at full speed, only the visual refresh is rate-limited.
+REDRAW_MIN_INTERVAL = 0.1  # seconds (=10 Hz max repaint)
+_last_redraw = 0.0
 
-def _redraw():
+
+def _redraw(now=None):
     """Request a redraw of 3D viewports and node editors so changes written
-    from this timer repaint without the user clicking in the viewport."""
+    from this timer repaint without the user clicking in the viewport.
+    Rate-limited to REDRAW_MIN_INTERVAL — see above."""
+    global _last_redraw
+    now = time.time() if now is None else now
+    if now - _last_redraw < REDRAW_MIN_INTERVAL:
+        return
+    _last_redraw = now
     wm = bpy.context.window_manager
     if not wm:
         return
