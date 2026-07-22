@@ -57,33 +57,33 @@ class AQAttributeNode(AQBaseNode, Node):
     object: PointerProperty(name="Object", type=bpy.types.Object)
     attribute: EnumProperty(name="Attribute", items=_attr_items)
 
-    def _update_all_instances(self, context):
-        sock = self.inputs.get("Index")
-        if sock is not None:
-            sock.enabled = not self.all_instances
-
     all_instances: BoolProperty(
         name="All Elements",
-        description="Output the whole attribute as an array (else a single index)",
+        description="Output the whole attribute as an array (else the single "
+                    "element at Index)",
         default=True,
-        update=_update_all_instances,
     )
     # Legacy fallback for nodes saved before the Index socket existed.
     index: IntProperty(name="Index", default=0, min=0)
 
     def init(self, context):
         # Index is a live input so it can be driven by the graph — e.g. wire an
-        # Animaquina run_idx (Property In) here to look up per-point toolpath
-        # attributes at the waypoint the robot / sim playback is currently at.
-        sock = self.new_input("Index", "INT", default=0)
-        sock.enabled = not self.all_instances
+        # Animaquina Index node here to look up per-point toolpath attributes
+        # at the waypoint the robot / sim playback is currently at. Always
+        # visible: hiding it on All Elements (enabled=False) read as "the
+        # socket is missing" and silently broke links.
+        self.new_input("Index", "INT", default=0)
         self.new_output("Value", "ANY")
 
     def draw_buttons(self, context, layout):
         layout.prop(self, "object", text="")
         layout.prop(self, "attribute", text="")
         layout.prop(self, "all_instances")
-        if not self.all_instances and self.inputs.get("Index") is None:
+        if self.all_instances:
+            sock = self.inputs.get("Index")
+            if sock is not None and sock.is_linked:
+                layout.label(text="Index ignored (All Elements on)", icon="INFO")
+        elif self.inputs.get("Index") is None:
             # Node from an old file (no socket): keep the property editable.
             layout.prop(self, "index")
 
@@ -147,7 +147,7 @@ def _add_index_socket(node):
         sock.value_int = int(getattr(node, "index", 0))
     except Exception:
         pass
-    sock.enabled = not node.all_instances
+    sock.enabled = True  # always visible (All Elements just ignores it)
     return sock
 
 
@@ -162,7 +162,11 @@ def version_index_sockets():
         for node in tree.nodes:
             if node.bl_idname != AQAttributeNode.bl_idname:
                 continue
-            if node.inputs.get("Index") is not None:
+            sock = node.inputs.get("Index")
+            if sock is not None:
+                if not sock.enabled:  # hidden by the old All-Elements toggle
+                    sock.enabled = True
+                    fixed += 1
                 continue
             try:
                 _add_index_socket(node)

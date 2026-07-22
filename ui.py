@@ -204,6 +204,25 @@ class PHYNODES_OT_connector_disconnect(Operator):
 # Node operators
 # ---------------------------------------------------------------------------
 
+class PHYNODES_OT_fabnode_republish(Operator):
+    bl_idname = "phynodes.fabnode_republish"
+    bl_label = "Force Republish"
+    bl_description = (
+        "Resend everything now: every PUB node's current value (bypassing "
+        "Only-on-Change once) and the FabNode manifest. Use when FabFlow "
+        "joined late and shows no values"
+    )
+
+    def execute(self, context):
+        from .nodes import mqtt_pub
+        mqtt_pub.clear_sent_cache()
+        for conn in connectors.all_live():
+            if getattr(conn, "fab_enabled", False):
+                conn._fab_last_manifest_hash = None  # manifest re-publishes next tick
+        self.report({"INFO"}, "Republishing values + manifest on next tick")
+        return {"FINISHED"}
+
+
 class PHYNODES_OT_reset_timer(Operator):
     bl_idname = "phynodes.reset_timer"
     bl_label = "Reset Timer"
@@ -322,6 +341,7 @@ classes = tuple(_category_menus) + (
     PHYNODES_OT_connector_remove,
     PHYNODES_OT_connector_connect,
     PHYNODES_OT_connector_disconnect,
+    PHYNODES_OT_fabnode_republish,
     PHYNODES_OT_copy_driver_path,
     PHYNODES_OT_reset_timer,
     PHYNODES_UL_connectors,

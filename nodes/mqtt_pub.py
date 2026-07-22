@@ -15,6 +15,13 @@ from .io_base import ConnectorIONode
 _last_sent = {}
 
 
+def clear_sent_cache():
+    """Forget every node's last-sent payload so the next tick republishes all
+    current values (Force Republish — lets a late-joining FabFlow catch up,
+    since PUB messages are not retained)."""
+    _last_sent.clear()
+
+
 class AQMqttPubNode(ConnectorIONode, Node):
     bl_idname = "PhyNodesMqttPubNode"
     bl_label = "MQTT PUB"
@@ -46,11 +53,41 @@ class AQMqttPubNode(ConnectorIONode, Node):
         self.draw_connector_selector(context, layout)
         layout.prop(self, "topic", text="")
         layout.prop(self, "only_on_change")
+        self._draw_delivery_status(context, layout)
+
+    def _draw_delivery_status(self, context, layout):
+        """Surface the silent publish-suppression cases, and — when the
+        connection's Verify Delivery is on — the broker loopback state."""
+        s = getattr(context.scene, "phynodes", None)
+        if s is not None and not s.enabled:
+            layout.label(text="graph disabled — not publishing", icon="PAUSE")
+            return
+        conn = self.get_connector()
+        if conn is None:
+            return
+        if getattr(conn, "estop_active", False):
+            layout.label(text="E-STOP — output suppressed", icon="CANCEL")
+            return
+        if not getattr(conn, "fab_verify", False):
+            return
+        sent = _last_sent.get(self.as_pointer())
+        if sent is None:
+            layout.label(text="nothing sent yet", icon="DOT")
+            return
+        echo = conn.read(self.topic)
+        if echo == sent:
+            layout.label(text="delivered: %s" % str(echo)[:20], icon="CHECKMARK")
+        else:
+            layout.label(text="awaiting broker echo...", icon="SORTTIME")
 
     def evaluate_sink(self):
         conn = self.get_connector()
         if conn is None:
             return
+        # Loopback verification: subscribe to our own topic so the broker
+        # echoes what we publish (idempotent + cheap; see Verify Delivery).
+        if getattr(conn, "fab_verify", False):
+            conn.ensure_subscribed(self.topic)
         # FabNodes safety rule: while system/estop is latched, control nodes
         # fail safe and suppress outbound values.
         if getattr(conn, "estop_active", False):

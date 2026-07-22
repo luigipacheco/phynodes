@@ -96,6 +96,13 @@ class PhyNodesConnectorConfig(PropertyGroup):
                     "it distinctly)",
         default="fab-blender",
     )
+    fabnode_verify: BoolProperty(
+        name="Verify Delivery",
+        description="Loopback check: subscribe to this connection's own PUB "
+                    "topics and confirm each published value comes back from "
+                    "the broker (each PUB node shows delivered / awaiting)",
+        default=False,
+    )
 
 
 class PhyNodesSettings(PropertyGroup):

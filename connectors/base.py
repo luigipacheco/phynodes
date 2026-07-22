@@ -35,6 +35,7 @@ class Connector:
     fab_enabled = False
     fab_name = ""
     fab_type = ""
+    fab_verify = False
     estop_active = False
 
     def __init__(self, name=""):

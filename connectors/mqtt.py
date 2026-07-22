@@ -66,6 +66,7 @@ class MQTTConnector(Connector):
             "fab_enabled": bool(getattr(item, "fabnode_enabled", False)),
             "fab_name": (getattr(item, "fabnode_name", "") or "").strip(),
             "fab_type": (getattr(item, "fabnode_type", "") or "").strip() or "fab-blender",
+            "fab_verify": bool(getattr(item, "fabnode_verify", False)),
         }
 
     @classmethod
@@ -91,6 +92,8 @@ class MQTTConnector(Connector):
         if item.fabnode_enabled:
             box.prop(item, "fabnode_name")
             box.prop(item, "fabnode_type")
+            box.prop(item, "fabnode_verify")
+            box.operator("phynodes.fabnode_republish", icon="FILE_REFRESH")
 
     @staticmethod
     def _normalize_prefix(prefix):
@@ -134,6 +137,7 @@ class MQTTConnector(Connector):
         self.fab_type = (config.get("fab_type", "") or "fab-blender").strip() or "fab-blender"
         # A FabNode with no name has no topic namespace — treat as disabled.
         self.fab_enabled = bool(config.get("fab_enabled", False)) and bool(self.fab_name)
+        self.fab_verify = bool(config.get("fab_verify", False))
         self.estop_active = False
         self._fab_started_at = time.time()
         self._fab_last_manifest_hash = None
