@@ -57,6 +57,12 @@ Raspberry Pi, Node-RED, Home Assistant, or a Python script on your bench.
   needed.
 - **Blender as I/O** — read/write object properties and **geometry-node
   attributes**; generate driver-ready custom properties.
+- **Robot toolpath streaming** — follow an Animaquina run with the **Animaquina
+  Index** node and publish any per-point attribute at the waypoint the robot is
+  on, for extruders, LEDs, fans, or any FabNode.
+- **Blender as a FabNode** — a connection can announce a **fabnodes/1.1**
+  manifest (with `$state`, heartbeat, and `system/estop` fail-safe), so FabFlow
+  discovers Blender like any ESP32.
 - **Typed sockets** — Float / Int / Bool / Vector / Color / String / Any, with
   per-socket defaults shown in the N-panel, geometry-nodes style.
 - **Time & math** — Scene Time, a continuous Timer, and a Blender-style Math
@@ -128,6 +134,83 @@ Geometry Attribute  (object, attribute: position, All Elements)
    └─▶ MQTT PUB  (topic: points)
 ```
 
+### Stream toolpath attributes to FabNodes (robot fabrication)
+
+The one that ties Blender, a robot, and hardware together: as a robot runs a
+toolpath, publish **each waypoint's attributes** to the network so extruders,
+LEDs, fans, or any FabNode react in sync with the motion.
+
+The idea is a single shared **cursor**. Animaquina publishes the index of the
+waypoint currently being executed; the **Animaquina Index** node reads it, and
+each **Geometry Attribute** node looks up *its own* attribute at that index.
+One index wire feeds any number of attributes.
+
+```
+                              ┌─▶ Geometry Attribute "PAR" ─▶ MQTT PUB  blender1/par
+[Animaquina Index]            │
+      Index ──────────────────┼─▶ Geometry Attribute "led" ─▶ MQTT PUB  blender1/led
+      Running ──▶ (gate)      │
+                              └─▶ Geometry Attribute "fan" ─▶ MQTT PUB  blender1/fan
+```
+
+**1 — Author the attributes.** On the toolpath mesh, store one value per
+waypoint on the **Point** domain (Geometry Nodes → *Store Named Attribute*).
+Names are entirely yours — `PAR`, `led`, `fan`. Booleans, floats, ints, and
+colors all work (vectors/colors publish as JSON arrays).
+
+**2 — Add the index.** *Add → Input → **Animaquina Index***, and pick the robot
+slot. The node body shows the live cursor (`Stream 25 / 100`) as the toolpath
+runs. Outputs:
+
+| Output | Use |
+|---|---|
+| **Index** | the cursor — wire to every Geometry Attribute |
+| **Running** | `False` while idle — gate publishing with this |
+| **Count** | total waypoints |
+| **Progress** | 0–1 along the run |
+
+**3 — Look up each attribute.** Add a **Geometry Attribute** node per attribute,
+pick the toolpath object and attribute, then **untick “All Elements”** — with it
+on the node returns the whole array and the `Index` socket is hidden. Wire
+`Index` into it.
+
+**4 — Publish.** Wire each attribute into an **MQTT PUB** node and give it a
+topic (`blender1/par`).
+
+> **Gate on `Running`.** While idle the index is `-1`, which the attribute node
+> clamps to point 0 — so an ungated graph publishes point 0's values forever.
+> Feed `Running` into a **Switch** ahead of the PUB so it goes quiet when the
+> robot isn't running.
+
+**5 — Appear in FabFlow.** On the MQTT connection enable **Announce as FabNode**
+(see below). Every PUB/SUB node becomes a port on a `fab-blender` node that
+FabFlow discovers automatically.
+
+Adding another streamed attribute later is just: name it on the mesh → one more
+Geometry Attribute + MQTT PUB → wire the same Index. Nothing changes on the
+Animaquina side, and the FabFlow node picks up the new port within a second.
+
+### Announce Blender as a FabNode
+
+A PhyNodes MQTT connection can present itself as a node on a **fabnodes/1.1**
+network, so [FabFlow](https://www.animaquina.com) discovers Blender like any
+ESP32 — no configuration on the hub side.
+
+In the **Connections** panel, enable **Announce as FabNode**, set a node name
+(`blender1`) and type (`fab-blender`), and **Connect**. PhyNodes then:
+
+- publishes a retained manifest to `fabnodes/manifest/<name>` (mirrored to
+  `<name>/$info`), with one signal per MQTT PUB/SUB node using that connection —
+  **re-published automatically whenever you change the graph**;
+- keeps `<name>/$state` at `online` / `offline` (Last Will on an unclean exit)
+  and beats `<name>/diag/uptime` every 15 s so FabFlow can show it live;
+- subscribes `system/estop` and **suppresses all PUB output while the e-stop is
+  latched**, acknowledging on `<name>/status/safe`.
+
+💡 Set the connection's **Topic Prefix to empty** and name PUB topics
+`blender1/par` so FabFlow shows clean port labels (`par`) instead of the full
+`/phynodes/...` path.
+
 ### Drive Blender from TouchOSC
 
 Add a connection, set its **Type** to **OSC** (defaults: listen on `9001`,
@@ -155,7 +238,8 @@ to the connection's send host/port.
 | **Scene Time** | Frame and Seconds from the timeline |
 | **Timer** | Continuous wall-clock seconds, with Reset |
 | **Property In** | Reads a Blender data path |
-| **Geometry Attribute** | Reads a mesh / geometry-nodes attribute (scalar, vector, or per-element array) |
+| **Animaquina Index** | Current waypoint of a running toolpath: Index, Running, Count, Progress |
+| **Geometry Attribute** | Reads a mesh / geometry-nodes attribute (scalar, vector, or per-element array); wire **Index** to look one point up |
 | **MQTT SUB** | Latest message on a topic (parses JSON / CSV / number / string) |
 | **OSC In** | Latest value on an OSC address (already typed; multi-arg → array) |
 

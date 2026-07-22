@@ -3,6 +3,7 @@
 # the Add menu (see ui.py, which reads NODE_CLASSES).
 
 import bpy
+from bpy.app.handlers import persistent
 
 from . import (
     value, input_nodes, time_node, math_node, map_node, clamp_node,
@@ -50,11 +51,30 @@ NODE_CLASSES = (
 )
 
 
+@persistent
+def _on_load(*_args):
+    attribute_node.version_index_sockets()
+
+
+def _version_once():
+    # Deferred to a timer: bpy.data is restricted while add-ons register during
+    # Blender startup (same reason settings.py defers its migration).
+    attribute_node.version_index_sockets()
+    return None
+
+
 def register():
     for cls in NODE_CLASSES:
         bpy.utils.register_class(cls)
+    if _on_load not in bpy.app.handlers.load_post:
+        bpy.app.handlers.load_post.append(_on_load)
+    bpy.app.timers.register(_version_once, first_interval=0.1)
 
 
 def unregister():
+    if bpy.app.timers.is_registered(_version_once):
+        bpy.app.timers.unregister(_version_once)
+    if _on_load in bpy.app.handlers.load_post:
+        bpy.app.handlers.load_post.remove(_on_load)
     for cls in reversed(NODE_CLASSES):
         bpy.utils.unregister_class(cls)

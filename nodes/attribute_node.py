@@ -131,4 +131,47 @@ class AQAttributeNode(AQBaseNode, Node):
         return self._read()
 
 
+# ---------------------------------------------------------------------------
+# Versioning — the Index input started life as a plain property, so nodes saved
+# before it became a socket have nothing to wire into (draw_buttons falls back
+# to the number field). init() only runs at creation and sockets persist in the
+# .blend, so those nodes never gain it on their own. Add it on load, carrying
+# the old value over, so existing graphs can be wired to an Animaquina Index
+# without being rebuilt.
+# ---------------------------------------------------------------------------
+
+def _add_index_socket(node):
+    sock = node.inputs.new("PhyNodesSocketType", "Index")
+    sock.data_type = "INT"
+    try:
+        sock.value_int = int(getattr(node, "index", 0))
+    except Exception:
+        pass
+    sock.enabled = not node.all_instances
+    return sock
+
+
+def version_index_sockets():
+    """Give every legacy Geometry Attribute node its Index input socket."""
+    from ..tree import TREE_ID
+
+    fixed = 0
+    for tree in bpy.data.node_groups:
+        if tree.bl_idname != TREE_ID:
+            continue
+        for node in tree.nodes:
+            if node.bl_idname != AQAttributeNode.bl_idname:
+                continue
+            if node.inputs.get("Index") is not None:
+                continue
+            try:
+                _add_index_socket(node)
+                fixed += 1
+            except Exception as exc:
+                print("[phynodes] could not add Index socket to", node.name, ":", exc)
+    if fixed:
+        print("[phynodes] added Index input to %d legacy Geometry Attribute node(s)" % fixed)
+    return fixed
+
+
 classes = (AQAttributeNode,)
