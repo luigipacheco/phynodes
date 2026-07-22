@@ -27,7 +27,10 @@ PROTOCOL = "fabnodes/1.1"
 FW = "phynodes-0.4.0"
 
 MANIFEST_MIN_INTERVAL = 1.0   # s between graph walks / hash checks (cheap)
-HEARTBEAT_INTERVAL = 15.0     # s between diag/uptime publishes (FabFlow cadence)
+# The diag/uptime heartbeat is NOT paced here: it beats from the MQTT worker
+# thread (connectors/mqtt.py), so FabFlow keeps seeing Blender alive even when
+# the main thread stalls (renders, heavy scenes). This tick only owns the
+# manifest, which must walk the node graph on the main thread.
 
 # PhyNodes socket data_type -> fabnodes signal type. Vectors/colors travel as
 # JSON arrays ([r,g,b,a]), matching the fabnodes array payload format.
@@ -136,7 +139,3 @@ def tick(now=None):
                 if digest != conn._fab_last_manifest_hash:
                     if conn.publish_manifest(payload):
                         conn._fab_last_manifest_hash = digest
-
-        if now - conn._fab_last_heartbeat >= HEARTBEAT_INTERVAL:
-            conn._fab_last_heartbeat = now
-            conn.publish_heartbeat()

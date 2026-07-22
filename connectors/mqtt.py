@@ -17,6 +17,7 @@ except ModuleNotFoundError:  # allow the addon to load and warn in the UI
 from .base import Connector, DISCONNECTED, CONNECTING, CONNECTED, ERROR
 
 RECONNECT_MAX_WAIT = 30.0  # seconds; backoff doubles from 1s up to this
+HEARTBEAT_INTERVAL = 15.0  # FabNodes diag/uptime cadence (FabFlow stales at 45s)
 
 
 class MQTTConnector(Connector):
@@ -214,6 +215,15 @@ class MQTTConnector(Connector):
                     if rc != 0 and not client.is_connected():
                         self.last_error = "connection lost - reconnecting"
                         break
+                    # FabNodes heartbeat from the worker thread — Blender's
+                    # main-thread timers stall during renders / heavy scenes,
+                    # and FabFlow greys nodes after 45 s without diag/uptime.
+                    # The worker keeps beating as long as the socket is alive.
+                    if self.fab_enabled and self.fab_name:
+                        now = time.time()
+                        if now - self._fab_last_heartbeat >= HEARTBEAT_INTERVAL:
+                            self._fab_last_heartbeat = now
+                            self.publish_heartbeat()
             except Exception as exc:
                 if self._current(gen):
                     self.last_error = str(exc)
